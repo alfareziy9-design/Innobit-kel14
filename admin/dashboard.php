@@ -20,7 +20,7 @@ include '../includes/navbar.php';
 <div class="max-w-7xl mx-auto px-4 py-8">
     <div class="mb-8">
         <h1 class="text-3xl font-bold mb-2">Dashboard Admin</h1>
-        <p class="text-slate-600">Halo, <?= htmlspecialchars($user['name']); ?>. Kelola artikel microlearning dari sini.</p>
+        <p class="text-slate-600">Halo, <?= htmlspecialchars($user['name']); ?>. Di sini Merupakan Tempat Kelola artikel InnoBit</p>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -88,7 +88,7 @@ include '../includes/navbar.php';
                                 <td class="p-3">
                                     <div class="flex flex-wrap gap-2">
                                         <a href="../artikel/detail.php?slug=<?= urlencode($article['slug']); ?>" class="bg-slate-200 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-300">
-                                            Detail
+                                            Lihat
                                         </a>
                                         <a href="../artikel/edit.php?id=<?= $article['id']; ?>" class="bg-yellow-400 text-white px-3 py-2 rounded-lg hover:bg-yellow-500">
                                             Edit

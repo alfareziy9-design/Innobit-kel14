@@ -1,5 +1,8 @@
 <?php
+$pageTitle = 'Register - Innobit';
 require_once 'functions/auth.php';
+require_once 'includes/header.php';
+include 'includes/navbar.php';
 
 $errors = [];
 $successMessage = '';
@@ -25,123 +28,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - InnoBit</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f9;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            width: 400px;
-            max-width: 90%;
-            background: #fff;
-            margin: 50px auto;
-            padding: 24px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.08);
-        }
-        h2 {
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .form-group {
-            margin-bottom: 16px;
-        }
-        label {
-            display: block;
-            margin-bottom: 6px;
-        }
-        input {
-            width: 100%;
-            padding: 10px;
-            box-sizing: border-box;
-        }
-        button {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            background: #007bff;
-            color: white;
-            cursor: pointer;
-            border-radius: 6px;
-        }
-        button:hover {
-            background: #0056b3;
-        }
-        .alert {
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 6px;
-        }
-        .alert-error {
-            background: #ffe5e5;
-            color: #b30000;
-        }
-        .alert-success {
-            background: #e6ffed;
-            color: #146c2e;
-        }
-        .text-center {
-            text-align: center;
-            margin-top: 15px;
-        }
-        ul {
-            padding-left: 20px;
-            margin: 0;
-        }
-    </style>
+    <title>Daftar - InnoBit</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-gray-100 text-slate-800 font-sans">
 
-<div class="container">
-    <h2>Register</h2>
+    <div class="min-h-screen flex items-center justify-center p-6">
+        <div class="w-full max-w-[700px] bg-white rounded-[28px] shadow-[0_20px_40px_rgba(15,23,42,0.12)] p-8 sm:p-[56px_60px]">
+            
+            <h1 class="text-center text-4xl sm:text-[44px] font-bold mb-2.5 text-slate-800">Daftar</h1>
 
-    <?php if (!empty($errors)) : ?>
-        <div class="alert alert-error">
-            <ul>
-                <?php foreach ($errors as $error) : ?>
-                    <li><?= $error; ?></li>
-                <?php endforeach; ?>
-            </ul>
+            <div class="text-center text-base sm:text-lg mb-9 text-slate-600">
+                Sudah punya akun? <a href="login.php" class="text-[#88e016] font-bold hover:underline">Masuk</a>
+            </div>
+
+            <?php if (!empty($errors)) : ?>
+                <div class="mb-5 p-4 rounded-xl bg-red-100 text-red-700">
+                    <ul class="list-disc pl-5">
+                        <?php foreach ($errors as $error) : ?>
+                            <li><?= htmlspecialchars($error); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
+
+            <?php if (isset($successMessage) && $successMessage) : ?>
+                <div class="mb-5 p-4 rounded-xl bg-green-100 text-green-700 font-medium">
+                    <?= htmlspecialchars($successMessage); ?>
+                </div>
+            <?php endif; ?>
+
+            <form action="" method="POST">
+                <div class="mb-0">
+                    <input
+                        type="text"
+                        name="name"
+                        placeholder="Nama Lengkap"
+                        value="<?= htmlspecialchars($_POST['name'] ?? ''); ?>"
+                        class="w-full h-[60px] sm:h-[68px] border border-slate-300 px-5 text-base sm:text-lg text-slate-600 outline-none focus:border-indigo-500 rounded-t-xl"
+                        required
+                    >
+                </div>
+
+                <div class="mb-0">
+                    <input
+                        type="email"
+                        name="email"
+                        placeholder="Alamat Email"
+                        value="<?= htmlspecialchars($_POST['email'] ?? ''); ?>"
+                        class="w-full h-[60px] sm:h-[68px] border-x border-b border-slate-300 px-5 text-base sm:text-lg text-slate-600 outline-none focus:border-indigo-500"
+                        required
+                    >
+                </div>
+
+                <div class="mb-0">
+                    <input
+                        type="password"
+                        name="password"
+                        placeholder="Password"
+                        class="w-full h-[60px] sm:h-[68px] border-x border-b border-slate-300 px-5 text-base sm:text-lg text-slate-600 outline-none focus:border-indigo-500"
+                        required
+                    >
+                </div>
+
+                <div class="mb-8">
+                    <input
+                        type="password"
+                        name="confirm_password"
+                        placeholder="Konfirmasi Password"
+                        class="w-full h-[60px] sm:h-[68px] border-x border-b border-slate-300 px-5 text-base sm:text-lg text-slate-600 outline-none focus:border-indigo-500 rounded-b-xl"
+                        required
+                    >
+                </div>
+
+                <button type="submit" class="w-full bg-[#88e016] hover:bg-[#74c010] text-white py-4 sm:py-[18px] rounded-xl text-lg sm:text-xl font-bold transition-all duration-200 transform active:scale-[0.98]">
+                    Daftar Sekarang
+                </button>
+            </form>
+            
         </div>
-    <?php endif; ?>
-
-    <?php if ($successMessage) : ?>
-        <div class="alert alert-success">
-            <?= $successMessage; ?>
-        </div>
-    <?php endif; ?>
-
-    <form action="" method="POST">
-        <div class="form-group">
-            <label for="name">Nama</label>
-            <input type="text" name="name" id="name" value="<?= htmlspecialchars($_POST['name'] ?? ''); ?>" required>
-        </div>
-
-        <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" name="email" id="email" value="<?= htmlspecialchars($_POST['email'] ?? ''); ?>" required>
-        </div>
-
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" name="password" id="password" required>
-        </div>
-
-        <div class="form-group">
-            <label for="confirm_password">Konfirmasi Password</label>
-            <input type="password" name="confirm_password" id="confirm_password" required>
-        </div>
-
-        <button type="submit">Daftar</button>
-    </form>
-
-    <div class="text-center">
-        Sudah punya akun? <a href="login.php">Login</a>
     </div>
-</div>
 
 </body>
 </html>

@@ -14,10 +14,18 @@ include 'includes/navbar.php';
 ?>
 
 <div class="max-w-7xl mx-auto px-4 py-8">
-    <div class="mb-8">
-        <h1 class="text-3xl md:text-4xl font-bold text-slate-800 mb-2">Daftar Baca Artikel</h1>
-        <p class="text-slate-600">Belajar cepat lewat artikel singkat, padat, dan praktis.</p>
+    <div class="flex flex-col md:flex-row items-center justify-between gap-8">
+        <div class="md:w-1/2">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-800 mb-2">
+                Naik Level Tanpa Drama
+            </h1>
+            <h1 class="text-3xl md:text-2xl text-slate-800 mb-2">
+                Platform Praktis untuk Kuasai Skill Digital
+            </h1>
+        </div>
     </div>
+</div>
+
 
     <div class="bg-white rounded-2xl shadow-sm border p-4 md:p-6 mb-8">
         <form method="GET" class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -27,8 +35,8 @@ include 'includes/navbar.php';
                     type="text"
                     name="search"
                     value="<?= htmlspecialchars($search); ?>"
-                    placeholder="Cari judul atau ringkasan..."
-                    class="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Cari judul artikel"
+                    class="w-full border rounded-none px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
             </div>
 
@@ -37,7 +45,7 @@ include 'includes/navbar.php';
                 <select
                     name="category_id"
                     id="categoryFilter"
-                    class="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="w-full border rounded-none px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                     <option value="">Semua Kategori</option>
                     <?php foreach ($categories as $category) : ?>
@@ -51,9 +59,8 @@ include 'includes/navbar.php';
             <div class="flex items-end">
                 <button
                     type="submit"
-                    class="w-full bg-blue-600 text-white rounded-xl px-4 py-3 hover:bg-blue-700 transition"
-                >
-                    Terapkan Filter
+                    class="w-full bg-lime-500 text-white rounded-none px-4 py-3 hover:bg-lime-600 transition"
+                    > Cari Artikel
                 </button>
             </div>
         </form>
@@ -77,7 +84,7 @@ include 'includes/navbar.php';
 
                     <div class="p-5">
                         <div class="flex items-center justify-between mb-3">
-                            <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
+                            <span class="text-xs font-semibold bg-lime-500 text-white px-3 py-1 rounded-full">
                                 <?= htmlspecialchars($article['category_name']); ?>
                             </span>
                             <span class="text-xs text-slate-500">
@@ -99,9 +106,9 @@ include 'includes/navbar.php';
                             </span>
                             <a
                                 href="artikel/detail.php?slug=<?= urlencode($article['slug']); ?>"
-                                class="text-blue-600 font-medium hover:underline"
+                                class="text-lime-500 font-medium hover:underline"
                             >
-                                Baca Detail
+                                Baca artikel
                             </a>
                         </div>
                     </div>

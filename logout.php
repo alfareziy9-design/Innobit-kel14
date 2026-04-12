@@ -3,5 +3,5 @@ require_once 'functions/auth.php';
 
 logoutUser();
 
-header('Location: login.php');
+header('Location: index.php');
 exit;
