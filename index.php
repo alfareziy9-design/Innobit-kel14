@@ -39,7 +39,7 @@ include __DIR__ . '/includes/navbar.php';
                     name="search"
                     value="<?= htmlspecialchars($search); ?>"
                     placeholder="Cari judul artikel"
-                    class="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-lime-500"
+                    class="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
             </div>
 
@@ -48,7 +48,7 @@ include __DIR__ . '/includes/navbar.php';
                 <select
                     name="category_id"
                     id="categoryFilter"
-                    class="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-lime-500"
+                    class="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                     <option value="">Semua Kategori</option>
                     <?php foreach ($categories as $category) : ?>
@@ -62,7 +62,7 @@ include __DIR__ . '/includes/navbar.php';
             <div class="flex items-end">
                 <button
                     type="submit"
-                    class="w-full bg-lime-500 text-white rounded-lg px-4 py-3 hover:bg-lime-600 transition font-bold"
+                    class="w-full bg-blue-500 text-white rounded-lg px-4 py-3 hover:bg-blue-600 transition font-bold"
                     > Cari Artikel
                 </button>
             </div>
@@ -95,7 +95,7 @@ include __DIR__ . '/includes/navbar.php';
 
                     <div class="p-6 flex flex-col flex-grow">
                         <div class="flex items-center justify-between mb-4">
-                            <span class="text-xs font-bold bg-lime-100 text-lime-700 px-3 py-1 rounded-full uppercase tracking-wider">
+                            <span class="text-xs font-bold bg-blue-100 text-blue-500 px-3 py-1 rounded-full uppercase tracking-wider">
                                 <?= htmlspecialchars($article['category_name']); ?>
                             </span>
                             <span class="text-xs text-slate-400">
@@ -116,12 +116,14 @@ include __DIR__ . '/includes/navbar.php';
                                 Oleh <span class="text-slate-600"><?= htmlspecialchars($article['author_name']); ?></span>
                             </span>
                             <a
-                                href="artikel/detail.php?slug=<?= urlencode($article['slug']); ?>"
-                                class="text-lime-600 text-sm font-bold hover:text-lime-700 flex items-center gap-1"
-                            >
-                                Baca Selengkapnya 
+                                 href="<?= $user 
+                                  ? 'artikel/detail.php?slug=' . urlencode($article['slug']) 
+                                 : '/Innobit-Kel14/login.php'; ?>"
+                                class="text-blue-600 text-sm font-bold hover:text-blue-700 flex items-center gap-1"
+                                >
+                                    Baca Selengkapnya 
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                                 </svg>
                             </a>
                         </div>

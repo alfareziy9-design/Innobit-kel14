@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <style>
         /* Custom accent color for checkbox */
         .accent-custom {
-            accent-color: #5cf026;
+            accent-color: #361dec;
         }
     </style>
 </head>
@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <h1 class="text-center text-4xl sm:text-[44px] font-bold mb-2.5 text-slate-800">Login</h1>
 
             <div class="text-center text-base sm:text-lg mb-9 text-slate-600">
-                Belum punya akun? <a href="register.php" class="text-[#88e016] font-bold hover:underline">Daftar</a>
+                Belum punya akun? <a href="register.php" class="text-[#361dec] font-bold hover:underline">Daftar</a>
             </div>
 
             <?php if (!empty($errors)) : ?>
@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         name="email"
                         placeholder="Alamat Email"
                         value="<?= htmlspecialchars($_POST['email'] ?? ''); ?>"
-                        class="w-full h-[60px] sm:h-[68px] border border-slate-300 px-5 text-base sm:text-lg text-slate-600 outline-none focus:border-indigo-500 rounded-t-none border-b-0"
+                        class="w-full h-[60px] sm:h-[68px] border border-slate-300 px-5 text-base sm:text-lg text-slate-600 outline-none focus:border-blue-500 rounded-t-none border-b-0"
                         required
                     >
                 </div>
@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         type="password"
                         name="password"
                         placeholder="Password"
-                        class="w-full h-[60px] sm:h-[68px] border border-slate-300 px-5 text-base sm:text-lg text-slate-600 outline-none focus:border-indigo-500 rounded-b-none"
+                        class="w-full h-[60px] sm:h-[68px] border border-slate-300 px-5 text-base sm:text-lg text-slate-600 outline-none focus:border-blue-500 rounded-b-none"
                         required
                     >
                 </div>
@@ -90,10 +90,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <span>Ingat saya</span>
                     </label>
 
-                    <a href="#" class="text-[#88e016] font-semibold text-base sm:text-lg hover:underline">Lupa password?</a>
+                    <a href="#" class="text-[#361dec] font-semibold text-base sm:text-lg hover:underline">Lupa password?</a>
                 </div>
 
-                <button type="submit" class="w-full bg-[#88e016] hover:bg-[#74c010] text-white py-4 sm:py-[18px] rounded-xl text-lg sm:text-xl font-bold transition-colors duration-200">
+                <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 sm:py-[18px] rounded-xl text-lg sm:text-xl font-bold transition-colors duration-200">
                     Masuk
                 </button>
             </form>

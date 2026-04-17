@@ -31,7 +31,7 @@ include '../includes/navbar.php';
 
         <div class="bg-white rounded-2xl border shadow-sm p-6">
             <h2 class="text-sm text-slate-500 mb-2">Total Kategori</h2>
-            <p class="text-3xl font-bold text-green-600"><?= $categoryCount; ?></p>
+            <p class="text-3xl font-bold text-blue-600"><?= $categoryCount; ?></p>
         </div>
 
         <div class="bg-white rounded-2xl border shadow-sm p-6">
@@ -80,7 +80,7 @@ include '../includes/navbar.php';
                                 <td class="p-3"><?= htmlspecialchars($article['category_name']); ?></td>
                                 <td class="p-3"><?= htmlspecialchars($article['author_name']); ?></td>
                                 <td class="p-3">
-                                    <span class="px-3 py-1 rounded-full text-xs font-semibold <?= $article['status'] === 'published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'; ?>">
+                                    <span class="px-3 py-1 rounded-full text-xs font-semibold <?= $article['status'] === 'published' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'; ?>">
                                         <?= htmlspecialchars($article['status']); ?>
                                     </span>
                                 </td>

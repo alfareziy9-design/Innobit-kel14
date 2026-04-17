@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <h1 class="text-center text-4xl sm:text-[44px] font-bold mb-2.5 text-slate-800">Daftar</h1>
 
             <div class="text-center text-base sm:text-lg mb-9 text-slate-600">
-                Sudah punya akun? <a href="login.php" class="text-[#88e016] font-bold hover:underline">Masuk</a>
+                Sudah punya akun? <a href="login.php" class="text-[#361dec] font-bold hover:underline">Masuk</a>
             </div>
 
             <?php if (!empty($errors)) : ?>
@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
 
             <?php if (isset($successMessage) && $successMessage) : ?>
-                <div class="mb-5 p-4 rounded-xl bg-green-100 text-green-700 font-medium">
+                <div class="mb-5 p-4 rounded-xl bg-[#361dec]-100 text-[#361dec]-700 font-medium">
                     <?= htmlspecialchars($successMessage); ?>
                 </div>
             <?php endif; ?>
@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     >
                 </div>
 
-                <button type="submit" class="w-full bg-[#88e016] hover:bg-[#74c010] text-white py-4 sm:py-[18px] rounded-xl text-lg sm:text-xl font-bold transition-all duration-200 transform active:scale-[0.98]">
+                <button type="submit" class="w-full bg-[#361dec] hover:bg-[#361dec] text-white py-4 sm:py-[18px] rounded-xl text-lg sm:text-xl font-bold transition-all duration-200 transform active:scale-[0.98]">
                     Daftar Sekarang
                 </button>
             </form>

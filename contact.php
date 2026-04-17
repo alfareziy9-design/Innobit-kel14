@@ -43,22 +43,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
 
             <?php if ($successMessage) : ?>
-                <div class="mb-5 p-4 rounded-xl bg-green-100 text-green-700 font-medium">
+                <div class="mb-5 p-4 rounded-xl bg-blue-100 text-blue-700 font-medium">
                     <?= htmlspecialchars($successMessage); ?>
                 </div>
             <?php endif; ?>
 
             <form method="POST">
                 <div class="mb-4">
-                    <input type="text" name="name" value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" placeholder="Nama Lengkap" class="w-full border rounded-none px-4 py-3 focus:outline-none focus:ring-2 focus:ring-lime-500">
+                    <input type="text" name="name" value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" placeholder="Nama Lengkap" class="w-full border rounded-none px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div class="mb-4">
-                    <input type="email" name="email" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" placeholder="Alamat Email" class="w-full border rounded-none px-4 py-3 focus:outline-none focus:ring-2 focus:ring-lime-500">
+                    <input type="email" name="email" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" placeholder="Alamat Email" class="w-full border rounded-none px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div class="mb-6">
-                    <textarea name="message" rows="5" placeholder="Pesan Anda..." class="w-full border rounded-none px-4 py-3 focus:outline-none focus:ring-2 focus:ring-lime-500"><?= htmlspecialchars($_POST['message'] ?? '') ?></textarea>
+                    <textarea name="message" rows="5" placeholder="Pesan Anda..." class="w-full border rounded-none px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"><?= htmlspecialchars($_POST['message'] ?? '') ?></textarea>
                 </div>
-                <button type="submit" class="bg-lime-500 text-white rounded-none px-6 py-3 hover:bg-lime-600 transition w-full md:w-auto">Kirim Pesan</button>
+                <button type="submit" class="bg-blue-500 text-white rounded-none px-6 py-3 hover:bg-blue-600 transition w-full md:w-auto">Kirim Pesan</button>
             </form>
         </div>
 
@@ -88,10 +88,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <h2 class="text-xl font-bold text-slate-800 mb-3">Ikuti Kami</h2>
             <div class="flex gap-4">
-                <a href="#" class="text-slate-500 hover:text-lime-500 transition">Instagram</a>
-                <a href="#" class="text-slate-500 hover:text-lime-500 transition">LinkedIn</a>
-                <a href="#" class="text-slate-500 hover:text-lime-500 transition">YouTube</a>
-                <a href="#" class="text-slate-500 hover:text-lime-500 transition">TikTok</a>
+                <a href="#" class="text-slate-500 hover:text-blue-500 transition">Instagram</a>
+                <a href="#" class="text-slate-500 hover:text-blue-500 transition">LinkedIn</a>
+                <a href="#" class="text-slate-500 hover:text-blue-500 transition">YouTube</a>
+                <a href="#" class="text-slate-500 hover:text-blue-500 transition">TikTok</a>
             </div>
         </div>
     </div>
