@@ -8,7 +8,9 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class DatabaseSeeder extends Seeder
 {
@@ -62,11 +64,14 @@ class DatabaseSeeder extends Seeder
 
         $categories = collect([
             ['name' => 'Programming', 'slug' => 'programming'],
-            ['name' => 'Design', 'slug' => 'design'],
-            ['name' => 'Productivity', 'slug' => 'productivity'],
+            ['name' => 'Desain', 'slug' => 'desain'],
+            ['name' => 'Produktivitas', 'slug' => 'produktivitas'],
         ])->mapWithKeys(fn ($category) => [
             $category['slug'] => Category::updateOrCreate(['slug' => $category['slug']], $category),
         ]);
+
+        $this->mergeCategoryAliases($categories['desain'], ['design']);
+        $this->mergeCategoryAliases($categories['produktivitas'], ['productivity']);
 
         Article::updateOrCreate(
             ['slug' => 'dasar-html-untuk-pemula'],
@@ -95,7 +100,7 @@ class DatabaseSeeder extends Seeder
         Article::updateOrCreate(
             ['slug' => 'teknik-belajar-25-menit'],
             [
-                'category_id' => $categories['productivity']->id,
+                'category_id' => $categories['produktivitas']->id,
                 'author_id' => $admin->id,
                 'title' => 'Teknik Belajar 25 Menit',
                 'summary' => 'Cara fokus belajar dengan metode pomodoro.',
@@ -103,5 +108,24 @@ class DatabaseSeeder extends Seeder
                 'status' => 'published',
             ]
         );
+    }
+
+    private function mergeCategoryAliases(Category $target, array $aliases): void
+    {
+        Category::whereIn('slug', $aliases)
+            ->whereKeyNot($target->id)
+            ->each(function (Category $duplicate) use ($target): void {
+                DB::table('articles')
+                    ->where('category_id', $duplicate->id)
+                    ->update(['category_id' => $target->id]);
+
+                if (Schema::hasTable('article_revisions')) {
+                    DB::table('article_revisions')
+                        ->where('category_id', $duplicate->id)
+                        ->update(['category_id' => $target->id]);
+                }
+
+                $duplicate->delete();
+            });
     }
 }
