@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Article;
 use App\Models\Category;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -18,6 +19,14 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $roles = collect([
+            ['name' => 'admin', 'label' => 'Administrator'],
+            ['name' => 'author', 'label' => 'Author'],
+            ['name' => 'user', 'label' => 'User'],
+        ])->mapWithKeys(fn ($role) => [
+            $role['name'] => Role::updateOrCreate(['name' => $role['name']], $role),
+        ]);
+
         $admin = User::updateOrCreate(
             ['email' => 'admin@microlearning.com'],
             [
@@ -25,6 +34,18 @@ class DatabaseSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'photo' => 'default.png',
                 'role' => 'admin',
+                'role_id' => $roles['admin']->id,
+            ]
+        );
+
+        User::updateOrCreate(
+            ['email' => 'author@microlearning.com'],
+            [
+                'name' => 'Author Demo',
+                'password' => Hash::make('password'),
+                'photo' => 'default.png',
+                'role' => 'author',
+                'role_id' => $roles['author']->id,
             ]
         );
 
@@ -35,6 +56,7 @@ class DatabaseSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'photo' => 'default.png',
                 'role' => 'user',
+                'role_id' => $roles['user']->id,
             ]
         );
 

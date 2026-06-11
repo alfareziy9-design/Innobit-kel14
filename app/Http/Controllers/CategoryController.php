@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -16,6 +17,21 @@ class CategoryController extends Controller
         return view('categories.index', compact('categories'));
     }
 
+    public function show(Request $request, Category $category)
+    {
+        $user = $request->user();
+        $articles = $category->articles()
+            ->with(['category', 'author', 'thumbnailMedia'])
+            ->when($user, fn ($query) => $query->withExists([
+                'favorites as is_favorited' => fn ($query) => $query->where('user_id', $user->id),
+            ]))
+            ->where('status', 'published')
+            ->latest()
+            ->paginate(16);
+
+        return view('categories.show', compact('category', 'articles'));
+    }
+
     public function create()
     {
         return view('categories.create');
@@ -27,6 +43,7 @@ class CategoryController extends Controller
         $data['slug'] = Str::slug($data['name']);
 
         Category::create($data);
+        AuditLog::record('category.created', Category::where('slug', $data['slug'])->first());
 
         return back()->with('success', 'Kategori berhasil ditambahkan.');
     }
@@ -40,7 +57,12 @@ class CategoryController extends Controller
     {
         $data = $this->validatedCategoryData($request, $category->id);
         $data['slug'] = Str::slug($data['name']);
+        $before = $category->only(['name', 'slug']);
         $category->update($data);
+        AuditLog::record('category.updated', $category, [
+            'before' => $before,
+            'after' => $category->only(['name', 'slug']),
+        ]);
 
         return back()->with('success', 'Kategori berhasil diperbarui.');
     }
@@ -52,6 +74,9 @@ class CategoryController extends Controller
         }
 
         $category->delete();
+        AuditLog::record('category.deleted', $category, [
+            'name' => $category->name,
+        ]);
 
         return back()->with('success', 'Kategori berhasil dihapus.');
     }

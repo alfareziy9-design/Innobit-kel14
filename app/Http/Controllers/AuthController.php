@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -26,9 +27,23 @@ class AuthController extends Controller
         ]);
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
+            if (! Auth::user()->isActive()) {
+                Auth::logout();
+
+                return back()
+                    ->withErrors(['email' => 'Akun Anda sedang ditangguhkan.'])
+                    ->onlyInput('email');
+            }
+
             $request->session()->regenerate();
 
-            return redirect()->intended(Auth::user()->isAdmin() ? route('admin.dashboard') : route('home'));
+            $dashboard = match (true) {
+                Auth::user()->isAdmin() => route('admin.dashboard'),
+                Auth::user()->isAuthor() => route('author.dashboard'),
+                default => route('home'),
+            };
+
+            return redirect()->intended($dashboard);
         }
 
         return back()
@@ -57,12 +72,15 @@ class AuthController extends Controller
             'password.confirmed' => 'Konfirmasi password tidak cocok.',
         ]);
 
+        $role = Role::where('name', 'user')->first();
+
         User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
-            'photo' => 'default.png',
+            'photo' => null,
             'role' => 'user',
+            'role_id' => $role?->id,
         ]);
 
         return back()->with('success', 'Registrasi berhasil. Silakan login.');

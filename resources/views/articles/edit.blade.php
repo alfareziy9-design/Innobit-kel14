@@ -8,7 +8,7 @@
         <h1 class="text-2xl md:text-3xl font-bold mb-6">Edit Artikel</h1>
         @include('partials.alerts')
 
-        <form action="{{ route('articles.update', $article) }}" method="POST" enctype="multipart/form-data" class="space-y-5">
+        <form action="{{ auth()->user()?->isAdmin() || $article->status !== 'published' ? route('articles.update', $article) : route('articles.revisions.store', $article) }}" method="POST" enctype="multipart/form-data" class="space-y-5">
             @include('articles._form', ['article' => $article])
         </form>
     </div>
