@@ -1,0 +1,174 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+.article-body {
+    color: #1e293b;
+    font-size: 17px;
+    line-height: 1.75;
+}
+
+.article-body > * + * {
+    margin-top: 1.25rem;
+}
+
+.article-body h2,
+.article-body h3,
+.article-body h4 {
+    color: #020617;
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+.article-body h2 {
+    font-size: 1.875rem;
+}
+
+.article-body h3 {
+    font-size: 1.5rem;
+}
+
+.article-body h4 {
+    font-size: 1.25rem;
+}
+
+.article-body ul,
+.article-body ol {
+    padding-left: 1.5rem;
+}
+
+.article-body ul {
+    list-style: disc;
+}
+
+.article-body ol {
+    list-style: decimal;
+}
+
+.article-body blockquote {
+    border-left: 4px solid #84cc16;
+    color: #334155;
+    font-weight: 600;
+    padding-left: 1rem;
+}
+
+.article-body a {
+    color: #3f6212;
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+.article-body figure {
+    clear: both;
+    margin: 1.5rem 0;
+}
+
+.article-body img {
+    border: 1px solid rgb(0 0 0 / 0.1);
+    border-radius: 0.5rem;
+    height: auto;
+    max-width: 100%;
+}
+
+.article-body figcaption {
+    color: #64748b;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+.article-body .article-media--full {
+    display: block;
+    width: 100%;
+}
+
+.article-body .article-media--center {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.article-body .article-media--left {
+    float: left;
+    margin: 0.35rem 1.25rem 1rem 0;
+    max-width: min(45%, 320px);
+}
+
+.article-body .article-media--right {
+    float: right;
+    margin: 0.35rem 0 1rem 1.25rem;
+    max-width: min(45%, 320px);
+}
+
+.article-body table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.article-body td,
+.article-body th {
+    border: 1px solid #cbd5e1;
+    padding: 0.75rem;
+}
+
+@media (max-width: 640px) {
+    .article-body .article-media--left,
+    .article-body .article-media--right {
+        display: block;
+        float: none;
+        margin: 1.25rem auto;
+        max-width: 100%;
+    }
+}
+
+@media print {
+    body.article-pdf-mode {
+        background: #fff !important;
+        color: #0f172a !important;
+    }
+
+    body.article-pdf-mode > nav,
+    body.article-pdf-mode > footer,
+    body.article-pdf-mode .article-print-hidden {
+        display: none !important;
+    }
+
+    body.article-pdf-mode .bg-lime-50\/45,
+    body.article-pdf-mode .article-print-area {
+        background: #fff !important;
+    }
+
+    body.article-pdf-mode .article-print-area {
+        border: 0 !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    body.article-pdf-mode .article-print-title {
+        display: block !important;
+    }
+
+    body.article-pdf-mode a {
+        color: #0f172a !important;
+        text-decoration: none !important;
+    }
+
+    body.article-pdf-mode img {
+        break-inside: avoid;
+        max-width: 100% !important;
+    }
+
+    @page {
+        margin: 16mm;
+    }
+}
