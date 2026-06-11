@@ -28,7 +28,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $admin = User::updateOrCreate(
-            ['email' => 'admin@microlearning.com'],
+            ['email' => 'admin-fian@innobit.web.id'],
             [
                 'name' => 'Administrator',
                 'password' => Hash::make('password'),
@@ -39,7 +39,7 @@ class DatabaseSeeder extends Seeder
         );
 
         User::updateOrCreate(
-            ['email' => 'author@microlearning.com'],
+            ['email' => 'farezi@innobit.web.id'],
             [
                 'name' => 'Author Demo',
                 'password' => Hash::make('password'),
@@ -50,7 +50,7 @@ class DatabaseSeeder extends Seeder
         );
 
         User::updateOrCreate(
-            ['email' => 'user@microlearning.com'],
+            ['email' => 'stevan@innobit.web.id'],
             [
                 'name' => 'User Demo',
                 'password' => Hash::make('password'),
