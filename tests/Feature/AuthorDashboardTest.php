@@ -50,7 +50,10 @@ class AuthorDashboardTest extends TestCase
             ->assertSee('<strong>1</strong> koleksi', false)
             ->assertSee('avg 80%')
             ->assertSee('Total views')
-            ->assertSee('Top Artikel');
+            ->assertSee('Top Artikel')
+            ->assertSee('Filter lanjutan')
+            ->assertSee('class="hidden md:block"', false)
+            ->assertSee('class="divide-y divide-slate-100 md:hidden"', false);
     }
 
     public function test_author_dashboard_filters_by_search_status_and_category(): void
