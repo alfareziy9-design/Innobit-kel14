@@ -41,7 +41,7 @@ class DatabaseSeeder extends Seeder
         );
 
         User::updateOrCreate(
-            ['email' => 'farezi@innobit.web.id'],
+            ['email' => '24082010145@student.upnjatim.ac.id'],
             [
                 'name' => 'Author Demo',
                 'password' => Hash::make('password'),
