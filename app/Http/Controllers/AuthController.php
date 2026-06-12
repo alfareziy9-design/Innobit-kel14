@@ -72,8 +72,10 @@ class AuthController extends Controller
                         return;
                     }
 
+                    $authorEmailWarning = 'Penulis dikhususkan untuk Mahasiswa Sistem Informasi UPN "Veteran" Jawa Timur';
+
                     if (! preg_match('/^(\d{11})@student\.upnjatim\.ac\.id$/i', (string) $value, $matches)) {
-                        $fail('Penulis wajib menggunakan email mahasiswa Sistem Informasi dengan format NPM@student.upnjatim.ac.id.');
+                        $fail($authorEmailWarning);
 
                         return;
                     }
@@ -81,7 +83,7 @@ class AuthController extends Controller
                     $npm = (int) $matches[1];
 
                     if ($npm < 20082010001 || $npm > 26082010999) {
-                        $fail('NPM penulis harus berada dalam rentang 20082010001 sampai 26082010999.');
+                        $fail($authorEmailWarning);
                     }
                 },
             ],

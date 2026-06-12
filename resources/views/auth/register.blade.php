@@ -37,7 +37,6 @@
 
             <div>
                 <input type="email" name="email" placeholder="Alamat Email" value="{{ old('email') }}" class="w-full h-[60px] sm:h-[68px] border-x border-b border-slate-300 px-5 text-base sm:text-lg text-slate-600 outline-none focus:border-lime-500" required>
-                <p class="border-x border-slate-300 px-5 py-2 text-xs leading-5 text-slate-500">Penulis wajib memakai email NPM@student.upnjatim.ac.id dengan NPM 20082010001 sampai 26082010999.</p>
             </div>
 
             <div>

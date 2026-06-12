@@ -18,7 +18,8 @@ class RegistrationTest extends TestCase
             ->assertSee('Penulis')
             ->assertSee('name="role" value="user"', false)
             ->assertSee('name="role" value="author"', false)
-            ->assertSee('value="user" class="mr-2 accent-lime-600" checked', false);
+            ->assertSee('value="user" class="mr-2 accent-lime-600" checked', false)
+            ->assertDontSee('Penulis wajib memakai email NPM@student.upnjatim.ac.id');
     }
 
     public function test_reader_can_register_with_a_general_email(): void
@@ -71,7 +72,9 @@ class RegistrationTest extends TestCase
             $this->post(route('register.store'), $this->registrationData([
                 'email' => $email,
                 'role' => 'author',
-            ]))->assertSessionHasErrors('email');
+            ]))->assertSessionHasErrors([
+                'email' => 'Penulis dikhususkan untuk Mahasiswa Sistem Informasi UPN "Veteran" Jawa Timur',
+            ]);
 
             $this->assertDatabaseMissing('users', ['email' => $email]);
         }
