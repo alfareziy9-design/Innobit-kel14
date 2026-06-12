@@ -128,4 +128,56 @@ class AdminOperationsTest extends TestCase
         $this->actingAs($user)->get(route('admin.users.index'))->assertForbidden();
         $this->actingAs($user)->get(route('admin.activity.index'))->assertForbidden();
     }
+
+    public function test_admin_pages_share_navigation_and_user_management_is_responsive(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        foreach ([
+            route('admin.dashboard'),
+            route('admin.users.index'),
+            route('admin.messages.index'),
+            route('admin.activity.index'),
+            route('kategori.index'),
+        ] as $url) {
+            $this->actingAs($admin)
+                ->get($url)
+                ->assertOk()
+                ->assertSee('aria-label="Navigasi admin"', false)
+                ->assertSee('Dashboard')
+                ->assertSee('User')
+                ->assertSee('Kategori')
+                ->assertSee('Pesan')
+                ->assertSee('Aktivitas');
+        }
+
+        $this->actingAs($admin)
+            ->get(route('admin.users.index'))
+            ->assertSee('class="hidden md:block"', false)
+            ->assertSee('class="divide-y divide-slate-100 md:hidden"', false);
+    }
+
+    public function test_review_article_renders_approval_and_rejection_forms_in_review_panel(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $author = User::factory()->create(['role' => 'author']);
+        $category = Category::create(['name' => 'Review UI', 'slug' => 'review-ui']);
+        $article = Article::create([
+            'category_id' => $category->id,
+            'author_id' => $author->id,
+            'title' => 'Artikel Menunggu Review',
+            'slug' => 'artikel-menunggu-review',
+            'summary' => 'Ringkasan.',
+            'content' => 'Konten.',
+            'status' => 'review',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Tinjau')
+            ->assertSee(route('admin.articles.approve', $article), false)
+            ->assertSee(route('admin.articles.reject', $article), false)
+            ->assertSee('name="note"', false);
+    }
 }
