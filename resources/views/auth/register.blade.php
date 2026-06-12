@@ -15,12 +15,29 @@
 
         <form action="{{ route('register.store') }}" method="POST">
             @csrf
+            <fieldset class="mb-5">
+                <legend class="mb-3 text-sm font-bold text-slate-700">Daftar sebagai</legend>
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <label class="cursor-pointer rounded-xl border border-slate-300 p-4 transition hover:border-lime-500 has-[:checked]:border-lime-600 has-[:checked]:bg-lime-50">
+                        <input type="radio" name="role" value="user" class="mr-2 accent-lime-600" @checked(old('role', 'user') === 'user') required>
+                        <span class="font-bold text-slate-800">Pembaca</span>
+                        <span class="mt-1 block text-sm text-slate-500">Membaca, menyimpan, dan mengikuti materi.</span>
+                    </label>
+                    <label class="cursor-pointer rounded-xl border border-slate-300 p-4 transition hover:border-lime-500 has-[:checked]:border-lime-600 has-[:checked]:bg-lime-50">
+                        <input type="radio" name="role" value="author" class="mr-2 accent-lime-600" @checked(old('role') === 'author') required>
+                        <span class="font-bold text-slate-800">Penulis</span>
+                        <span class="mt-1 block text-sm text-slate-500">Khusus mahasiswa Sistem Informasi UPN Veteran Jawa Timur.</span>
+                    </label>
+                </div>
+            </fieldset>
+
             <div>
                 <input type="text" name="name" placeholder="Nama Lengkap" value="{{ old('name') }}" class="w-full h-[60px] sm:h-[68px] border border-slate-300 px-5 text-base sm:text-lg text-slate-600 outline-none focus:border-lime-500 rounded-t-xl" required>
             </div>
 
             <div>
                 <input type="email" name="email" placeholder="Alamat Email" value="{{ old('email') }}" class="w-full h-[60px] sm:h-[68px] border-x border-b border-slate-300 px-5 text-base sm:text-lg text-slate-600 outline-none focus:border-lime-500" required>
+                <p class="border-x border-slate-300 px-5 py-2 text-xs leading-5 text-slate-500">Penulis wajib memakai email NPM@student.upnjatim.ac.id dengan NPM 20082010001 sampai 26082010999.</p>
             </div>
 
             <div>

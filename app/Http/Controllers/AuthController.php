@@ -7,6 +7,7 @@ use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -60,10 +61,35 @@ class AuthController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', 'max:100', 'unique:users,email'],
+            'role' => ['required', Rule::in(['user', 'author'])],
+            'email' => [
+                'required',
+                'email',
+                'max:100',
+                'unique:users,email',
+                function (string $attribute, mixed $value, \Closure $fail) use ($request): void {
+                    if ($request->input('role') !== 'author') {
+                        return;
+                    }
+
+                    if (! preg_match('/^(\d{11})@student\.upnjatim\.ac\.id$/i', (string) $value, $matches)) {
+                        $fail('Penulis wajib menggunakan email mahasiswa Sistem Informasi dengan format NPM@student.upnjatim.ac.id.');
+
+                        return;
+                    }
+
+                    $npm = (int) $matches[1];
+
+                    if ($npm < 20082010001 || $npm > 26082010999) {
+                        $fail('NPM penulis harus berada dalam rentang 20082010001 sampai 26082010999.');
+                    }
+                },
+            ],
             'password' => ['required', 'min:6', 'confirmed'],
         ], [
             'name.required' => 'Nama wajib diisi.',
+            'role.required' => 'Jenis akun wajib dipilih.',
+            'role.in' => 'Jenis akun tidak valid.',
             'email.required' => 'Email wajib diisi.',
             'email.email' => 'Format email tidak valid.',
             'email.unique' => 'Email sudah terdaftar.',
@@ -72,15 +98,15 @@ class AuthController extends Controller
             'password.confirmed' => 'Konfirmasi password tidak cocok.',
         ]);
 
-        $role = Role::where('name', 'user')->first();
+        $role = Role::where('name', $data['role'])->firstOrFail();
 
         User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'photo' => null,
-            'role' => 'user',
-            'role_id' => $role?->id,
+            'role' => $role->name,
+            'role_id' => $role->id,
         ]);
 
         return back()->with('success', 'Registrasi berhasil. Silakan login.');
