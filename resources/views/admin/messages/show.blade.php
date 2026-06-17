@@ -9,13 +9,24 @@
 
         <a href="{{ route('admin.messages.index') }}" class="inline-flex items-center text-sm font-bold text-slate-600 hover:text-lime-700">&larr; Kembali ke inbox</a>
 
-        <article class="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="mt-5">
+            @include('partials.alerts')
+        </div>
+
+        <article
+            class="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+            @if ($contactMessage->user_id)
+                data-chat
+                data-viewer="admin"
+                data-updates-url="{{ route('admin.messages.updates', $contactMessage) }}"
+            @endif
+        >
             <header class="border-b border-slate-100 px-5 py-6 sm:px-8 sm:py-7">
                 <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                     <div class="min-w-0">
                         <p class="text-sm font-semibold text-lime-700">Pesan kontak</p>
                         <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">{{ $contactMessage->name }}</h1>
-                        <a href="mailto:{{ $contactMessage->email }}" class="mt-2 inline-block break-all text-sm text-slate-500 hover:text-lime-700">{{ $contactMessage->email }}</a>
+                        <p class="mt-2 break-all text-sm text-slate-500">{{ $contactMessage->email }}</p>
                         @if ($contactMessage->user)
                             <p class="mt-3 inline-flex rounded-full bg-lime-50 px-3 py-1 text-xs font-bold text-lime-700">Akun terdaftar: {{ $contactMessage->user->name }}</p>
                         @endif
@@ -24,10 +35,29 @@
                 </div>
             </header>
 
-            <div class="px-5 py-7 sm:px-8 sm:py-9">
-                <div class="whitespace-pre-wrap break-words text-base leading-8 text-slate-700">{{ $contactMessage->message }}</div>
+            <div data-chat-messages class="max-h-[560px] min-h-[320px] space-y-4 overflow-y-auto bg-slate-50/60 px-5 py-7 sm:px-8 sm:py-9">
+                @forelse ($contactMessage->conversationMessages as $message)
+                    @php($isOwn = $message->sender_type === 'admin')
+                    <article data-message-id="{{ $message->id }}" class="flex {{ $isOwn ? 'justify-end' : 'justify-start' }}">
+                        <div class="max-w-[85%] rounded-2xl px-4 py-3 {{ $isOwn ? 'bg-slate-950 text-white' : 'border border-slate-200 bg-white text-slate-700' }}">
+                            <p class="text-xs font-bold {{ $isOwn ? 'text-lime-300' : 'text-lime-700' }}">{{ $isOwn ? 'Admin InnoBit' : $contactMessage->name }}</p>
+                            <p class="mt-1 whitespace-pre-wrap break-words text-sm leading-6">{{ $message->message }}</p>
+                            <time class="mt-2 block text-[11px] {{ $isOwn ? 'text-white/55' : 'text-slate-400' }}">{{ $message->created_at->format('d M Y H:i') }}</time>
+                        </div>
+                    </article>
+                @empty
+                    <article class="flex justify-start">
+                        <div class="max-w-[85%] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-700">
+                            <p class="text-xs font-bold text-lime-700">{{ $contactMessage->name }}</p>
+                            <p class="mt-1 whitespace-pre-wrap break-words text-sm leading-6">{{ $contactMessage->message }}</p>
+                            <time class="mt-2 block text-[11px] text-slate-400">{{ $contactMessage->created_at->format('d M Y H:i') }}</time>
+                        </div>
+                    </article>
+                @endforelse
+            </div>
 
-                <details class="mt-8 rounded-xl border border-slate-200 bg-slate-50/70">
+            <div class="border-t border-slate-100 px-5 py-5 sm:px-8">
+                <details class="rounded-xl border border-slate-200 bg-slate-50/70">
                     <summary class="cursor-pointer list-none px-4 py-3 text-sm font-bold text-slate-700 [&::-webkit-details-marker]:hidden">Informasi teknis pengirim</summary>
                     <dl class="grid gap-4 border-t border-slate-200 p-4 text-sm sm:grid-cols-2">
                         <div><dt class="font-bold text-slate-700">IP Address</dt><dd class="mt-1 text-slate-500">{{ $contactMessage->ip_address ?: '-' }}</dd></div>
@@ -36,8 +66,23 @@
                 </details>
             </div>
 
+            @if ($contactMessage->user_id)
+                <form data-chat-form action="{{ route('admin.messages.reply', $contactMessage) }}" method="POST" class="border-t border-slate-100 px-5 py-5 sm:px-8">
+                    @csrf
+                    <label for="admin-chat-message" class="mb-2 block text-sm font-bold text-slate-700">Balas sebagai Admin InnoBit</label>
+                    <textarea id="admin-chat-message" name="message" rows="3" required maxlength="5000" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-lime-600 focus:ring-4 focus:ring-lime-100" placeholder="Tulis balasan untuk pengguna..."></textarea>
+                    <div class="mt-3 flex items-center justify-between gap-3">
+                        <p data-chat-error class="text-sm font-semibold text-rose-600"></p>
+                        <button data-chat-submit class="rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-lime-700">Kirim Balasan</button>
+                    </div>
+                </form>
+            @else
+                <div class="border-t border-amber-200 bg-amber-50 px-5 py-4 text-sm font-semibold text-amber-800 sm:px-8">
+                    Pesan tamu lama ini tidak terhubung ke akun dan hanya dapat dibaca.
+                </div>
+            @endif
+
             <footer class="flex flex-wrap gap-3 border-t border-slate-100 bg-slate-50/60 px-5 py-5 sm:px-8">
-                <a href="mailto:{{ $contactMessage->email }}?subject={{ rawurlencode('Balasan pesan InnoBit') }}" class="rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-lime-700">Balas via email</a>
                 <form action="{{ route('admin.messages.read', $contactMessage) }}" method="POST">
                     @csrf @method('PATCH')
                     <input type="hidden" name="is_read" value="0">

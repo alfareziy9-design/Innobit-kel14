@@ -8,12 +8,6 @@
     $hasActiveFilters = request()->filled('search') || request()->filled('status') || request()->filled('category_id') || request()->filled('author_id') || request()->filled('date_from') || request()->filled('date_to') || request()->filled('sort');
     $hasAdvancedFilters = request()->filled('date_from') || request()->filled('date_to') || request('sort', 'newest') !== 'newest';
 
-    $statusMeta = fn ($status) => match ($status) {
-        'published' => ['Terbit', 'border-lime-200 bg-lime-50 text-lime-700', 'bg-lime-500'],
-        'review' => ['Menunggu review', 'border-sky-200 bg-sky-50 text-sky-700', 'bg-sky-500'],
-        'rejected' => ['Perlu revisi', 'border-rose-200 bg-rose-50 text-rose-700', 'bg-rose-500'],
-        default => ['Draft', 'border-amber-200 bg-amber-50 text-amber-700', 'bg-amber-500'],
-    };
 @endphp
 
 <div class="min-h-[calc(100vh-140px)] bg-[#f5f6f3]">
@@ -57,11 +51,11 @@
                         <p class="mt-2 text-3xl font-black text-sky-200">{{ $reviewCount }}</p>
                     </div>
                     <div class="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-                        <p class="text-sm text-white/55">Revisi ditinjau</p>
+                        <p class="text-sm text-white/55">Pembaruan perlu ditinjau</p>
                         <p class="mt-2 text-3xl font-black text-violet-200">{{ $pendingRevisionCount }}</p>
                     </div>
                     <div class="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-                        <p class="text-sm text-white/55">Perlu revisi</p>
+                        <p class="text-sm text-white/55">Perlu perbaikan</p>
                         <p class="mt-2 text-3xl font-black text-rose-200">{{ $rejectedCount }}</p>
                     </div>
                     <div class="rounded-xl border border-white/10 bg-white/[0.04] p-4">
@@ -84,7 +78,7 @@
                 @endif
                 @if ($pendingRevisionCount > 0)
                     <div class="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm leading-6 text-violet-900">
-                        <span class="font-bold">{{ $pendingRevisionCount }} revisi terbit</span> sedang menunggu keputusan.
+                        <span class="font-bold">{{ $pendingRevisionCount }} pembaruan artikel Terbit</span> sedang menunggu keputusan.
                     </div>
                 @endif
             </div>
@@ -100,10 +94,6 @@
                         <h2 class="mt-1 text-2xl font-black tracking-tight text-slate-950">Artikel dan approval</h2>
                         <p class="mt-1 text-sm leading-6 text-slate-500">{{ $articleCount }} artikel dikelola, {{ $publishedCount }} sudah terbit.</p>
                     </div>
-                    <div class="flex gap-2">
-                        <a href="{{ route('articles.create') }}" class="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-lime-700">Artikel baru</a>
-                        <a href="{{ route('kategori.index') }}" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:border-lime-400 hover:text-lime-700">Kategori</a>
-                    </div>
                 </div>
 
                 <form method="GET" action="{{ route('admin.dashboard') }}" class="border-b border-slate-100 bg-slate-50/60 px-5 py-5 sm:px-6">
@@ -117,9 +107,11 @@
                             <select id="admin-status" name="status" class="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold outline-none focus:border-lime-600 focus:ring-4 focus:ring-lime-100">
                                 <option value="">Semua status</option>
                                 <option value="published" @selected(request('status') === 'published')>Terbit</option>
+                                <option value="revision_review" @selected(request('status') === 'revision_review')>Pembaruan menunggu review</option>
+                                <option value="revision_rejected" @selected(request('status') === 'revision_rejected')>Pembaruan perlu perbaikan</option>
                                 <option value="review" @selected(request('status') === 'review')>Menunggu review</option>
                                 <option value="draft" @selected(request('status') === 'draft')>Draft</option>
-                                <option value="rejected" @selected(request('status') === 'rejected')>Perlu revisi</option>
+                                <option value="rejected" @selected(request('status') === 'rejected')>Perlu perbaikan</option>
                             </select>
                         </div>
                         <div>
@@ -192,7 +184,8 @@
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">
                                     @foreach ($articles as $article)
-                                        @php([$statusLabel, $statusClass, $statusDot] = $statusMeta($article->status))
+                                        @php($publicationStatus = $article->statusMeta())
+                                        @php($revisionStatus = $article->revisionStatusMeta())
                                         <tr class="align-top transition hover:bg-slate-50/70">
                                             <td class="px-6 py-5">
                                                 <div class="max-w-sm">
@@ -205,9 +198,14 @@
                                                 <p class="font-semibold text-slate-800">{{ $article->author->name }}</p>
                                             </td>
                                             <td class="max-w-[220px] px-4 py-5">
-                                                <span class="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-bold {{ $statusClass }}">
-                                                    <span class="h-1.5 w-1.5 rounded-full {{ $statusDot }}"></span>{{ $statusLabel }}
+                                                <span class="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-bold {{ $publicationStatus['class'] }}">
+                                                    <span class="h-1.5 w-1.5 rounded-full {{ $publicationStatus['dot'] }}"></span>{{ $publicationStatus['label'] }}
                                                 </span>
+                                                @if ($revisionStatus)
+                                                    <span class="mt-2 inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-bold {{ $revisionStatus['class'] }}">
+                                                        <span class="h-1.5 w-1.5 rounded-full {{ $revisionStatus['dot'] }}"></span>{{ $revisionStatus['label'] }}
+                                                    </span>
+                                                @endif
                                                 @if ($article->latestReview?->note)
                                                     <p class="mt-2 text-xs leading-5 text-slate-500">{{ $article->latestReview->note }}</p>
                                                 @endif
@@ -216,28 +214,17 @@
                                             <td class="px-6 py-5">
                                                 <div class="flex flex-wrap justify-end gap-2">
                                                     @if ($article->status === 'review')
-                                                        <details class="group relative">
-                                                            <summary class="cursor-pointer list-none rounded-lg bg-slate-950 px-3 py-2 text-xs font-bold text-white [&::-webkit-details-marker]:hidden">Tinjau</summary>
-                                                            <div class="absolute right-0 top-10 z-20 w-80 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xl">
-                                                                <form action="{{ route('admin.articles.approve', $article) }}" method="POST">
-                                                                    @csrf
-                                                                    <label class="text-xs font-bold text-slate-600">Catatan persetujuan</label>
-                                                                    <input name="note" type="text" maxlength="2000" placeholder="Opsional" class="mt-2 h-10 w-full rounded-lg border border-slate-300 px-3 text-xs">
-                                                                    <button class="mt-2 w-full rounded-lg bg-lime-600 px-3 py-2 text-xs font-bold text-white">Setujui dan terbitkan</button>
-                                                                </form>
-                                                                <form action="{{ route('admin.articles.reject', $article) }}" method="POST" class="mt-4 border-t border-slate-100 pt-4">
-                                                                    @csrf
-                                                                    <label class="text-xs font-bold text-slate-600">Alasan revisi</label>
-                                                                    <input name="note" type="text" required maxlength="2000" placeholder="Wajib diisi" class="mt-2 h-10 w-full rounded-lg border border-rose-200 px-3 text-xs">
-                                                                    <button class="mt-2 w-full rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">Kembalikan ke penulis</button>
-                                                                </form>
-                                                            </div>
-                                                        </details>
+                                                        <a href="{{ route('admin.articles.review', $article) }}" class="rounded-lg bg-slate-950 px-3 py-2 text-xs font-bold text-white">Tinjau</a>
+                                                    @endif
+                                                    @if ($article->pendingRevision)
+                                                        <a href="{{ route('admin.articles.revisions.review', [$article, $article->pendingRevision]) }}" class="rounded-lg bg-violet-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-800">Tinjau Pembaruan</a>
                                                     @endif
                                                     @if ($article->status === 'published')
                                                         <a href="{{ route('articles.show', $article->slug) }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700">Lihat</a>
                                                     @endif
-                                                    <a href="{{ route('articles.edit', $article) }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700">Edit</a>
+                                                    @if ($article->author_id === auth()->id())
+                                                        <a href="{{ route('articles.edit', $article) }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700">Edit</a>
+                                                    @endif
                                                     <form action="{{ route('articles.destroy', $article) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus data ini?')">
                                                         @csrf @method('DELETE')
                                                         <button class="px-2 py-2 text-xs font-bold text-rose-600">Hapus</button>
@@ -253,36 +240,29 @@
 
                     <div class="divide-y divide-slate-100 md:hidden">
                         @foreach ($articles as $article)
-                            @php([$statusLabel, $statusClass, $statusDot] = $statusMeta($article->status))
+                            @php($publicationStatus = $article->statusMeta())
+                            @php($revisionStatus = $article->revisionStatusMeta())
                             <article class="p-5">
                                 <div class="flex items-start justify-between gap-3">
                                     <span class="text-xs font-bold text-lime-700">{{ $article->category->name }}</span>
-                                    <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold {{ $statusClass }}"><span class="h-1.5 w-1.5 rounded-full {{ $statusDot }}"></span>{{ $statusLabel }}</span>
+                                    <div class="flex flex-col items-end gap-1.5">
+                                        <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold {{ $publicationStatus['class'] }}"><span class="h-1.5 w-1.5 rounded-full {{ $publicationStatus['dot'] }}"></span>{{ $publicationStatus['label'] }}</span>
+                                        @if ($revisionStatus)
+                                            <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold {{ $revisionStatus['class'] }}"><span class="h-1.5 w-1.5 rounded-full {{ $revisionStatus['dot'] }}"></span>{{ $revisionStatus['label'] }}</span>
+                                        @endif
+                                    </div>
                                 </div>
                                 <h3 class="mt-3 font-black leading-6 text-slate-950">{{ $article->title }}</h3>
                                 <p class="mt-1 text-sm text-slate-500">{{ $article->author->name }} &middot; {{ $article->created_at->format('d M Y') }}</p>
                                 <p class="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">{{ $article->summary }}</p>
                                 @if ($article->latestReview?->note)<p class="mt-3 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-600">{{ $article->latestReview->note }}</p>@endif
                                 @if ($article->status === 'review')
-                                    <details class="mt-4 rounded-xl border border-slate-200">
-                                        <summary class="cursor-pointer list-none px-4 py-3 text-sm font-bold text-slate-800 [&::-webkit-details-marker]:hidden">Tinjau artikel</summary>
-                                        <div class="border-t border-slate-100 p-4">
-                                            <form action="{{ route('admin.articles.approve', $article) }}" method="POST">
-                                                @csrf
-                                                <input name="note" type="text" maxlength="2000" placeholder="Catatan persetujuan (opsional)" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-xs">
-                                                <button class="mt-2 w-full rounded-lg bg-lime-600 px-3 py-2 text-xs font-bold text-white">Setujui dan terbitkan</button>
-                                            </form>
-                                            <form action="{{ route('admin.articles.reject', $article) }}" method="POST" class="mt-4 border-t border-slate-100 pt-4">
-                                                @csrf
-                                                <input name="note" type="text" required maxlength="2000" placeholder="Alasan revisi (wajib)" class="h-10 w-full rounded-lg border border-rose-200 px-3 text-xs">
-                                                <button class="mt-2 w-full rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">Kembalikan ke penulis</button>
-                                            </form>
-                                        </div>
-                                    </details>
+                                    <a href="{{ route('admin.articles.review', $article) }}" class="mt-4 inline-flex rounded-lg bg-slate-950 px-3 py-2 text-xs font-bold text-white">Tinjau artikel</a>
                                 @endif
                                 <div class="mt-4 flex items-center gap-2">
+                                    @if ($article->pendingRevision)<a href="{{ route('admin.articles.revisions.review', [$article, $article->pendingRevision]) }}" class="rounded-lg bg-violet-700 px-3 py-2 text-xs font-bold text-white">Tinjau Pembaruan</a>@endif
                                     @if ($article->status === 'published')<a href="{{ route('articles.show', $article->slug) }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold">Lihat</a>@endif
-                                    <a href="{{ route('articles.edit', $article) }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold">Edit</a>
+                                    @if ($article->author_id === auth()->id())<a href="{{ route('articles.edit', $article) }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold">Edit</a>@endif
                                     <form action="{{ route('articles.destroy', $article) }}" method="POST" class="ml-auto" onsubmit="return confirm('Yakin ingin menghapus data ini?')">@csrf @method('DELETE')<button class="px-2 py-2 text-xs font-bold text-rose-600">Hapus</button></form>
                                 </div>
                             </article>
@@ -305,7 +285,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-semibold text-violet-700">Antrean editorial</p>
-                            <h2 class="mt-1 text-lg font-black text-slate-950">Revisi artikel terbit</h2>
+                            <h2 class="mt-1 text-lg font-black text-slate-950">Pembaruan artikel Terbit</h2>
                         </div>
                         <span class="rounded-full bg-white px-2.5 py-1 text-xs font-black text-violet-700">{{ $pendingRevisionCount }}</span>
                     </div>
@@ -314,24 +294,10 @@
                             <article class="rounded-xl border border-violet-100 bg-white p-4">
                                 <p class="text-sm font-bold leading-5 text-slate-900">{{ $revision->title }}</p>
                                 <p class="mt-1 text-xs text-slate-500">{{ $revision->author->name }} &middot; {{ $revision->created_at->diffForHumans() }}</p>
-                                <details class="mt-3 rounded-lg border border-slate-200">
-                                    <summary class="cursor-pointer list-none px-3 py-2 text-xs font-bold text-slate-700 [&::-webkit-details-marker]:hidden">Tinjau revisi</summary>
-                                    <div class="border-t border-slate-100 p-3">
-                                        <form action="{{ route('admin.articles.revisions.approve', [$revision->article, $revision]) }}" method="POST">
-                                            @csrf
-                                            <input name="note" type="text" maxlength="2000" placeholder="Catatan persetujuan" class="h-9 w-full rounded-lg border border-slate-300 px-3 text-xs">
-                                            <button class="mt-2 w-full rounded-lg bg-lime-600 px-3 py-2 text-xs font-bold text-white">Setujui revisi</button>
-                                        </form>
-                                        <form action="{{ route('admin.articles.revisions.reject', [$revision->article, $revision]) }}" method="POST" class="mt-3 border-t border-slate-100 pt-3">
-                                            @csrf
-                                            <input name="note" type="text" required maxlength="2000" placeholder="Alasan revisi" class="h-9 w-full rounded-lg border border-rose-200 px-3 text-xs">
-                                            <button class="mt-2 w-full rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">Tolak revisi</button>
-                                        </form>
-                                    </div>
-                                </details>
+                                <a href="{{ route('admin.articles.revisions.review', [$revision->article, $revision]) }}" class="mt-3 inline-flex rounded-lg bg-slate-950 px-3 py-2 text-xs font-bold text-white">Tinjau pembaruan</a>
                             </article>
                         @empty
-                            <p class="rounded-xl bg-white/70 p-4 text-sm leading-6 text-slate-500">Tidak ada revisi published yang menunggu review.</p>
+                            <p class="rounded-xl bg-white/70 p-4 text-sm leading-6 text-slate-500">Tidak ada pembaruan artikel Terbit yang menunggu review.</p>
                         @endforelse
                     </div>
                 </section>
@@ -358,7 +324,7 @@
                         @forelse ($recentMessages as $message)
                             <a href="{{ route('admin.messages.show', $message) }}" class="block py-3 first:pt-0 last:pb-0">
                                 <div class="flex justify-between gap-3"><p class="truncate text-sm font-bold text-slate-800">{{ $message->name }}</p><span class="shrink-0 text-[11px] text-slate-400">{{ $message->created_at->format('d M') }}</span></div>
-                                <p class="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{{ $message->message }}</p>
+                                <p class="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{{ $message->latestConversationMessage?->message ?? $message->message }}</p>
                             </a>
                         @empty
                             <p class="py-3 text-sm text-slate-500">Belum ada pesan kontak.</p>

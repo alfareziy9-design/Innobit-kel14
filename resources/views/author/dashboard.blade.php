@@ -8,18 +8,6 @@
     $hasActiveFilters = request()->filled('search') || request()->filled('status') || request()->filled('category_id') || request()->filled('date_from') || request()->filled('date_to') || request()->filled('sort');
     $hasAdvancedFilters = request()->filled('date_from') || request()->filled('date_to') || request('sort', 'newest') !== 'newest';
 
-    $statusMeta = function ($article): array {
-        if ($article->pendingRevision) {
-            return ['Revisi sedang ditinjau', 'border-violet-200 bg-violet-50 text-violet-700', 'bg-violet-500'];
-        }
-
-        return match ($article->status) {
-            'published' => ['Terbit', 'border-lime-200 bg-lime-50 text-lime-700', 'bg-lime-500'],
-            'review' => ['Menunggu review', 'border-sky-200 bg-sky-50 text-sky-700', 'bg-sky-500'],
-            'rejected' => ['Perlu diperbaiki', 'border-rose-200 bg-rose-50 text-rose-700', 'bg-rose-500'],
-            default => ['Draft', 'border-amber-200 bg-amber-50 text-amber-700', 'bg-amber-500'],
-        };
-    };
 @endphp
 
 <div class="min-h-[calc(100vh-140px)] bg-[#f7f8f5]">
@@ -43,7 +31,7 @@
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                     </svg>
-                    Tulis artikel
+                    Buat Artikel
                 </a>
             </div>
 
@@ -71,8 +59,8 @@
                         @foreach ([
                             ['Draft', $draftCount, 'text-amber-700'],
                             ['Menunggu review', $reviewCount, 'text-sky-700'],
-                            ['Perlu revisi', $rejectedCount, 'text-rose-700'],
-                            ['Revisi ditinjau', $pendingRevisionCount, 'text-violet-700'],
+                            ['Perlu perbaikan', $rejectedCount, 'text-rose-700'],
+                            ['Pembaruan menunggu ditinjau', $pendingRevisionCount, 'text-violet-700'],
                         ] as [$label, $count, $color])
                             <div class="border-b border-r border-slate-100 p-4 even:border-r-0 sm:border-b-0 sm:even:border-r sm:last:border-r-0">
                                 <p class="text-2xl font-black tracking-tight text-slate-950">{{ $count }}</p>
@@ -98,10 +86,6 @@
                             {{ $articles->total() }} artikel ditemukan. Cek status dan lanjutkan pekerjaan dari sini.
                         </p>
                     </div>
-                    <a href="{{ route('articles.create') }}" class="hidden items-center gap-2 text-sm font-bold text-slate-700 transition hover:text-lime-700 sm:inline-flex">
-                        Artikel baru
-                        <span aria-hidden="true">&rarr;</span>
-                    </a>
                 </div>
 
                 <form method="GET" action="{{ route('author.dashboard') }}" class="border-b border-slate-100 bg-slate-50/60 px-5 py-5 sm:px-6">
@@ -121,8 +105,8 @@
                             <select id="author-status" name="status" class="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-lime-600 focus:ring-4 focus:ring-lime-100">
                                 <option value="">Semua status</option>
                                 <option value="published" @selected(request('status') === 'published')>Terbit</option>
-                                <option value="revision_review" @selected(request('status') === 'revision_review')>Revisi ditinjau</option>
-                                <option value="revision_rejected" @selected(request('status') === 'revision_rejected')>Revisi ditolak</option>
+                                <option value="revision_review" @selected(request('status') === 'revision_review')>Pembaruan menunggu review</option>
+                                <option value="revision_rejected" @selected(request('status') === 'revision_rejected')>Pembaruan perlu perbaikan</option>
                                 <option value="review" @selected(request('status') === 'review')>Menunggu review</option>
                                 <option value="draft" @selected(request('status') === 'draft')>Draft</option>
                                 <option value="rejected" @selected(request('status') === 'rejected')>Perlu diperbaiki</option>
@@ -190,7 +174,8 @@
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">
                                     @foreach ($articles as $article)
-                                        @php([$statusLabel, $statusClass, $statusDot] = $statusMeta($article))
+                                        @php($publicationStatus = $article->statusMeta())
+                                        @php($revisionStatus = $article->revisionStatusMeta())
                                         <tr class="align-top transition hover:bg-slate-50/70">
                                             <td class="px-6 py-5">
                                                 <div class="max-w-sm">
@@ -204,10 +189,16 @@
                                                 </div>
                                             </td>
                                             <td class="max-w-[240px] px-4 py-5">
-                                                <span class="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-bold {{ $statusClass }}">
-                                                    <span class="h-1.5 w-1.5 rounded-full {{ $statusDot }}"></span>
-                                                    {{ $statusLabel }}
+                                                <span class="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-bold {{ $publicationStatus['class'] }}">
+                                                    <span class="h-1.5 w-1.5 rounded-full {{ $publicationStatus['dot'] }}"></span>
+                                                    {{ $publicationStatus['label'] }}
                                                 </span>
+                                                @if ($revisionStatus)
+                                                    <span class="mt-2 inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-bold {{ $revisionStatus['class'] }}">
+                                                        <span class="h-1.5 w-1.5 rounded-full {{ $revisionStatus['dot'] }}"></span>
+                                                        {{ $revisionStatus['label'] }}
+                                                    </span>
+                                                @endif
                                                 @if ($article->status === 'rejected' && $article->latestReview?->note)
                                                     <div class="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-800">
                                                         <strong>Alasan revisi:</strong> {{ $article->latestReview->note }}
@@ -215,7 +206,7 @@
                                                 @endif
                                                 @if ($article->latestRevision && $article->latestRevision->status === 'rejected')
                                                     <div class="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-800">
-                                                        <strong>Revisi published ditolak:</strong> {{ $article->latestRevision->review_note }}
+                                                        <strong>Alasan pembaruan perlu diperbaiki:</strong> {{ $article->latestRevision->review_note }}
                                                     </div>
                                                 @endif
                                                 @if ($article->reviews->isNotEmpty())
@@ -250,16 +241,18 @@
                                                     @if ($article->status === 'published')
                                                         <a href="{{ route('articles.show', $article->slug) }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-lime-400 hover:text-lime-700">Lihat</a>
                                                     @endif
-                                                    @if ($article->status !== 'review')
+                                                    @if ($article->status !== 'review' && ! $article->pendingRevision)
                                                         <a href="{{ route('articles.edit', $article) }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
-                                                            {{ $article->status === 'published' ? 'Buat revisi' : 'Edit' }}
+                                                            {{ $article->status === 'published' ? ($article->latestRevision?->status === 'rejected' ? 'Perbaiki pembaruan' : 'Buat pembaruan') : 'Edit' }}
                                                         </a>
                                                     @endif
-                                                    <form action="{{ route('articles.destroy', $article) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus artikel ini?')">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button class="px-2 py-2 text-xs font-bold text-rose-600 transition hover:text-rose-800">Hapus</button>
-                                                    </form>
+                                                    @if (in_array($article->status, ['draft', 'rejected'], true))
+                                                        <form action="{{ route('articles.destroy', $article) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus artikel ini?')">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button class="px-2 py-2 text-xs font-bold text-rose-600 transition hover:text-rose-800">Hapus</button>
+                                                        </form>
+                                                    @endif
                                                 </div>
                                             </td>
                                         </tr>
@@ -271,14 +264,23 @@
 
                     <div class="divide-y divide-slate-100 md:hidden">
                         @foreach ($articles as $article)
-                            @php([$statusLabel, $statusClass, $statusDot] = $statusMeta($article))
+                            @php($publicationStatus = $article->statusMeta())
+                            @php($revisionStatus = $article->revisionStatusMeta())
                             <article class="p-5">
                                 <div class="flex items-start justify-between gap-3">
                                     <span class="text-xs font-bold text-lime-700">{{ $article->category->name }}</span>
-                                    <span class="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold {{ $statusClass }}">
-                                        <span class="h-1.5 w-1.5 rounded-full {{ $statusDot }}"></span>
-                                        {{ $statusLabel }}
-                                    </span>
+                                    <div class="flex flex-col items-end gap-1.5">
+                                        <span class="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold {{ $publicationStatus['class'] }}">
+                                            <span class="h-1.5 w-1.5 rounded-full {{ $publicationStatus['dot'] }}"></span>
+                                            {{ $publicationStatus['label'] }}
+                                        </span>
+                                        @if ($revisionStatus)
+                                            <span class="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold {{ $revisionStatus['class'] }}">
+                                                <span class="h-1.5 w-1.5 rounded-full {{ $revisionStatus['dot'] }}"></span>
+                                                {{ $revisionStatus['label'] }}
+                                            </span>
+                                        @endif
+                                    </div>
                                 </div>
                                 <h3 class="mt-3 text-base font-black leading-6 text-slate-950">{{ $article->title }}</h3>
                                 <p class="mt-1 line-clamp-2 text-sm leading-6 text-slate-500">{{ $article->summary }}</p>
@@ -290,7 +292,7 @@
                                 @endif
                                 @if ($article->latestRevision && $article->latestRevision->status === 'rejected')
                                     <div class="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-800">
-                                        <strong>Revisi published ditolak:</strong> {{ $article->latestRevision->review_note }}
+                                        <strong>Alasan pembaruan perlu diperbaiki:</strong> {{ $article->latestRevision->review_note }}
                                     </div>
                                 @endif
                                 @if ($article->reviews->isNotEmpty())
@@ -323,16 +325,18 @@
                                     @if ($article->status === 'published')
                                         <a href="{{ route('articles.show', $article->slug) }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700">Lihat</a>
                                     @endif
-                                    @if ($article->status !== 'review')
+                                    @if ($article->status !== 'review' && ! $article->pendingRevision)
                                         <a href="{{ route('articles.edit', $article) }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700">
-                                            {{ $article->status === 'published' ? 'Buat revisi' : 'Edit' }}
+                                            {{ $article->status === 'published' ? ($article->latestRevision?->status === 'rejected' ? 'Perbaiki pembaruan' : 'Buat pembaruan') : 'Edit' }}
                                         </a>
                                     @endif
-                                    <form action="{{ route('articles.destroy', $article) }}" method="POST" class="ml-auto" onsubmit="return confirm('Yakin ingin menghapus artikel ini?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button class="px-2 py-2 text-xs font-bold text-rose-600">Hapus</button>
-                                    </form>
+                                    @if (in_array($article->status, ['draft', 'rejected'], true))
+                                        <form action="{{ route('articles.destroy', $article) }}" method="POST" class="ml-auto" onsubmit="return confirm('Yakin ingin menghapus artikel ini?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="px-2 py-2 text-xs font-bold text-rose-600">Hapus</button>
+                                        </form>
+                                    @endif
                                 </div>
                             </article>
                         @endforeach
@@ -350,9 +354,11 @@
                         <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
                             {{ $hasActiveFilters ? 'Coba ubah kata kunci atau hapus beberapa filter untuk melihat hasil lain.' : 'Bagikan satu keterampilan praktis yang bisa langsung dicoba oleh pembaca InnoBit.' }}
                         </p>
-                        <a href="{{ $hasActiveFilters ? route('author.dashboard') : route('articles.create') }}" class="mt-5 inline-flex rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-lime-700">
-                            {{ $hasActiveFilters ? 'Hapus semua filter' : 'Tulis artikel' }}
-                        </a>
+                        @if ($hasActiveFilters)
+                            <a href="{{ route('author.dashboard') }}" class="mt-5 inline-flex rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-lime-700">
+                                Hapus semua filter
+                            </a>
+                        @endif
                     </div>
                 @endif
 

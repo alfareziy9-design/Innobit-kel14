@@ -6,6 +6,7 @@ use App\Models\Article;
 use App\Models\Category;
 use App\Models\ContactMessage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class HomeController extends Controller
@@ -143,6 +144,10 @@ class HomeController extends Controller
 
     public function sendContact(Request $request)
     {
+        if ($request->user()->isAdmin()) {
+            return redirect()->route('admin.messages.index');
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:100'],
@@ -157,15 +162,25 @@ class HomeController extends Controller
             'website.max' => 'Pesan tidak dapat diproses.',
         ]);
 
-        ContactMessage::create([
-            'user_id' => $request->user()?->id,
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'message' => $data['message'],
-            'ip_address' => $request->ip(),
-            'user_agent' => Str::limit((string) $request->userAgent(), 500, ''),
-        ]);
+        DB::transaction(function () use ($request, $data): void {
+            $thread = ContactMessage::create([
+                'user_id' => $request->user()->id,
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'message' => $data['message'],
+                'last_message_at' => now(),
+                'user_read_at' => now(),
+                'ip_address' => $request->ip(),
+                'user_agent' => Str::limit((string) $request->userAgent(), 500, ''),
+            ]);
 
-        return back()->with('success', 'Pesan Anda telah terkirim. Kami akan menghubungi Anda segera.');
+            $thread->conversationMessages()->create([
+                'sender_id' => $request->user()->id,
+                'sender_type' => 'user',
+                'message' => $data['message'],
+            ]);
+        });
+
+        return redirect()->route('messages.index')->with('success', 'Pesan terkirim. Balasan admin akan muncul di halaman ini.');
     }
 }

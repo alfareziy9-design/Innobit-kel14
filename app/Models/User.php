@@ -86,6 +86,11 @@ class User extends Authenticatable
         return $this->hasMany(ContactMessage::class);
     }
 
+    public function sentContactConversationMessages()
+    {
+        return $this->hasMany(ContactConversationMessage::class, 'sender_id');
+    }
+
     public function learningCollections()
     {
         return $this->hasMany(LearningCollection::class);

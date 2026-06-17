@@ -8,6 +8,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LearningController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UserMessageController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -17,7 +18,7 @@ Route::get('/jelajahi/{section}', [HomeController::class, 'explore'])
 Route::get('/about', [HomeController::class, 'about'])->name('about');
 Route::get('/contact', [HomeController::class, 'contact'])->name('contact');
 Route::post('/contact', [HomeController::class, 'sendContact'])
-    ->middleware('throttle:5,1')
+    ->middleware(['auth', 'account.active', 'throttle:5,1'])
     ->name('contact.send');
 
 Route::middleware('guest')->group(function () {
@@ -33,12 +34,22 @@ Route::middleware(['auth', 'account.active', 'admin'])->group(function () {
     Route::get('/admin/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
     Route::post('/admin/artikel/{article}/approve', [AdminController::class, 'approve'])->name('admin.articles.approve');
     Route::post('/admin/artikel/{article}/reject', [AdminController::class, 'reject'])->name('admin.articles.reject');
+    Route::get('/admin/artikel/{article}/review', [AdminController::class, 'reviewArticle'])->name('admin.articles.review');
+    Route::get('/admin/artikel/{article}/review/edit', [ArticleController::class, 'editReviewArticle'])->name('admin.articles.review.edit');
+    Route::put('/admin/artikel/{article}/review', [ArticleController::class, 'updateReviewArticle'])->name('admin.articles.review.update');
+    Route::get('/admin/artikel/{article}/revision/{revision}/review', [AdminController::class, 'reviewRevision'])->name('admin.articles.revisions.review');
+    Route::get('/admin/artikel/{article}/revision/{revision}/review/edit', [ArticleController::class, 'editReviewRevision'])->name('admin.articles.revisions.review.edit');
+    Route::put('/admin/artikel/{article}/revision/{revision}/review', [ArticleController::class, 'updateReviewRevision'])->name('admin.articles.revisions.review.update');
     Route::post('/admin/artikel/{article}/revision/{revision}/approve', [AdminController::class, 'approveRevision'])->name('admin.articles.revisions.approve');
     Route::post('/admin/artikel/{article}/revision/{revision}/reject', [AdminController::class, 'rejectRevision'])->name('admin.articles.revisions.reject');
     Route::get('/admin/pesan', [AdminController::class, 'messages'])->name('admin.messages.index');
     Route::get('/admin/pesan/{contactMessage}', [AdminController::class, 'showMessage'])->name('admin.messages.show');
     Route::delete('/admin/pesan/{contactMessage}', [AdminController::class, 'destroyMessage'])->name('admin.messages.destroy');
     Route::patch('/admin/pesan/{contactMessage}/read', [AdminController::class, 'updateMessageReadStatus'])->name('admin.messages.read');
+    Route::post('/admin/pesan/{contactMessage}/reply', [AdminController::class, 'replyToMessage'])
+        ->middleware('throttle:20,1')
+        ->name('admin.messages.reply');
+    Route::get('/admin/pesan/{contactMessage}/updates', [AdminController::class, 'messageUpdates'])->name('admin.messages.updates');
     Route::get('/admin/users', [AdminController::class, 'users'])->name('admin.users.index');
     Route::patch('/admin/users/{user}/role', [AdminController::class, 'updateUserRole'])->name('admin.users.role');
     Route::patch('/admin/users/{user}/status', [AdminController::class, 'updateUserStatus'])->name('admin.users.status');
@@ -72,6 +83,13 @@ Route::middleware(['auth', 'account.active'])->group(function () {
     Route::put('/profil/foto', [ProfileController::class, 'updatePhoto'])->name('profile.photo.update');
     Route::delete('/profil/foto', [ProfileController::class, 'destroyPhoto'])->name('profile.photo.destroy');
     Route::put('/profil/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
+
+    Route::get('/pesan-saya', [UserMessageController::class, 'index'])->name('messages.index');
+    Route::get('/pesan-saya/{contactMessage}', [UserMessageController::class, 'show'])->name('messages.show');
+    Route::post('/pesan-saya/{contactMessage}/reply', [UserMessageController::class, 'storeReply'])
+        ->middleware('throttle:20,1')
+        ->name('messages.reply');
+    Route::get('/pesan-saya/{contactMessage}/updates', [UserMessageController::class, 'updates'])->name('messages.updates');
 
     Route::get('/belajar/histori', [LearningController::class, 'history'])->name('learning.history');
     Route::get('/belajar/favorit', [LearningController::class, 'favorites'])->name('learning.favorites');

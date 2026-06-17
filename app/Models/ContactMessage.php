@@ -15,16 +15,30 @@ class ContactMessage extends Model
         'email',
         'message',
         'read_at',
+        'last_message_at',
+        'user_read_at',
         'ip_address',
         'user_agent',
     ];
 
     protected $casts = [
         'read_at' => 'datetime',
+        'last_message_at' => 'datetime',
+        'user_read_at' => 'datetime',
     ];
 
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function conversationMessages()
+    {
+        return $this->hasMany(ContactConversationMessage::class);
+    }
+
+    public function latestConversationMessage()
+    {
+        return $this->hasOne(ContactConversationMessage::class)->latestOfMany();
     }
 }

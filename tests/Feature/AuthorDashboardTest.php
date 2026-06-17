@@ -43,6 +43,8 @@ class AuthorDashboardTest extends TestCase
         $this->actingAs($author)
             ->get(route('author.dashboard'))
             ->assertOk()
+            ->assertSee(route('articles.create'), false)
+            ->assertSee('Buat Artikel')
             ->assertSee('Artikel Author Sendiri')
             ->assertDontSee('Artikel Author Lain')
             ->assertSee('<strong>2</strong> views', false)

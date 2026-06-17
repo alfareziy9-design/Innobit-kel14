@@ -56,8 +56,8 @@
                                     @if ($message->user)<span class="rounded-full bg-lime-50 px-2 py-0.5 text-[11px] font-bold text-lime-700">User terdaftar</span>@endif
                                 </div>
                                 <p class="mt-1 text-xs text-slate-500">{{ $message->email }}</p>
-                                <p class="mt-3 line-clamp-2 max-w-3xl text-sm leading-6 text-slate-600">{{ $message->message }}</p>
-                                <p class="mt-2 text-xs text-slate-400">{{ $message->created_at->format('d M Y H:i') }}</p>
+                                <p class="mt-3 line-clamp-2 max-w-3xl text-sm leading-6 text-slate-600">{{ $message->latestConversationMessage?->message ?? $message->message }}</p>
+                                <p class="mt-2 text-xs text-slate-400">{{ ($message->last_message_at ?? $message->created_at)->format('d M Y H:i') }}</p>
                             </div>
                         </div>
                         <div class="flex flex-wrap gap-2 lg:max-w-[300px] lg:justify-end">
@@ -67,7 +67,11 @@
                                 <input type="hidden" name="is_read" value="{{ $message->read_at ? 0 : 1 }}">
                                 <button class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700">{{ $message->read_at ? 'Tandai belum dibaca' : 'Tandai dibaca' }}</button>
                             </form>
-                            <a href="mailto:{{ $message->email }}?subject={{ rawurlencode('Balasan pesan InnoBit') }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700">Balas</a>
+                            @if ($message->user_id)
+                                <a href="{{ route('admin.messages.show', $message) }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700">Balas di web</a>
+                            @else
+                                <span class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-400">Pesan lama</span>
+                            @endif
                             <form action="{{ route('admin.messages.destroy', $message) }}" method="POST" onsubmit="return confirm('Hapus pesan ini secara permanen?')">
                                 @csrf @method('DELETE')
                                 <button class="px-2 py-2 text-xs font-bold text-rose-600">Hapus</button>

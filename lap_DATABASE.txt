@@ -1,0 +1,791 @@
+LAPORAN DATABASE APLIKASI INNOBIT
+=================================
+
+Tanggal pemeriksaan : 12 Juni 2026
+Nama aplikasi       : InnoBit
+Framework           : Laravel
+DBMS                : MySQL / MariaDB
+Nama database       : innobit_laravel
+Host                : 127.0.0.1
+Port                : 3306
+Status migration    : 24 migration sudah dijalankan
+
+
+1. GAMBARAN UMUM
+----------------
+
+Database InnoBit digunakan untuk mendukung website microlearning skill digital.
+Data utama yang dikelola meliputi:
+
+1. Akun pengguna dan pembagian peran.
+2. Artikel microlearning dan kategori.
+3. Proses review serta revisi artikel.
+4. Media artikel.
+5. Quiz dan hasil pengerjaan quiz.
+6. Aktivitas belajar pembaca.
+7. Pesan kontak.
+8. Aktivitas administratif.
+9. Tabel internal Laravel untuk session, cache, queue, dan migration.
+
+Database sudah sesuai dengan fitur aplikasi yang berjalan. Seluruh migration
+berstatus Ran dan relasi foreign key utama telah diperiksa.
+
+
+2. PERAN PENGGUNA
+-----------------
+
+Tabel roles menyimpan tiga jenis peran:
+
+1. ADMIN
+   - Mengelola seluruh artikel.
+   - Menyetujui atau menolak artikel yang dikirim author.
+   - Menyetujui atau menolak revisi artikel terbit.
+   - Mengelola kategori.
+   - Mengelola role dan status akun pengguna.
+   - Membaca serta menghapus pesan kontak.
+   - Melihat audit log aktivitas administratif.
+
+2. AUTHOR
+   - Membuat artikel.
+   - Mengedit draft.
+   - Mengirim artikel untuk direview admin.
+   - Memperbaiki artikel yang ditolak.
+   - Mengajukan revisi terhadap artikel yang sudah terbit.
+   - Melihat statistik artikel miliknya.
+
+3. USER
+   - Membaca artikel yang sudah terbit.
+   - Menyimpan artikel sebagai favorit.
+   - Menambahkan artikel ke koleksi belajar.
+   - Mengerjakan quiz.
+   - Memiliki histori dan aktivitas belajar.
+
+Role pengguna direpresentasikan oleh:
+
+- users.role    : nilai enum admin, author, atau user.
+- users.role_id : foreign key menuju roles.id.
+
+Kedua kolom dipertahankan untuk kompatibilitas aplikasi. Model User menjaga
+sinkronisasi role dan role_id. Hasil pemeriksaan menunjukkan tidak ada data role
+yang tidak sinkron.
+
+
+3. AKUN UTAMA SETELAH PERBAIKAN
+-------------------------------
+
+Database lokal sekarang memiliki satu akun untuk setiap peran:
+
+1. Administrator
+   Email : admin-fian@innobit.web.id
+   Role  : admin
+   Status: active
+
+2. Author Demo
+   Email : 24082010145@student.upnjatim.ac.id
+   Role  : author
+   Status: active
+
+3. User Demo
+   Email : stevan@innobit.web.id
+   Role  : user
+   Status: active
+
+Password akun hasil seeder adalah "password". Password tersimpan dalam bentuk
+hash dan tidak disimpan sebagai teks biasa di database.
+
+
+4. PERBAIKAN DATA YANG DILAKUKAN
+--------------------------------
+
+Sebelum perbaikan terdapat dua kelompok akun demo:
+
+- Kelompok lama menggunakan domain microlearning.com.
+- Kelompok terbaru menggunakan akun seed InnoBit.
+
+Perbaikan dilakukan dengan menggabungkan akun lama ke akun canonical terbaru:
+
+- Admin lama diarahkan ke admin-fian@innobit.web.id.
+- Author lama diarahkan ke 24082010145@student.upnjatim.ac.id.
+- User lama diarahkan ke stevan@innobit.web.id.
+
+Seluruh referensi data dipindahkan sebelum akun lama dihapus, meliputi:
+
+- Kepemilikan artikel.
+- Review artikel.
+- Revisi artikel.
+- Media.
+- View artikel.
+- Favorit.
+- Koleksi belajar.
+- Histori.
+- Percobaan quiz.
+- Pesan kontak.
+- Audit log.
+- Session yang masih terkait.
+
+Hasil pemeriksaan setelah penggabungan:
+
+- Referensi ke ID akun lama : 0
+- Ketidaksesuaian role       : 0
+- Artikel tanpa author       : 0
+- Artikel tanpa kategori     : 0
+- Orphan foreign key utama   : 0
+
+Perbaikan hanya dilakukan pada data lokal. Struktur migration, controller,
+model, route, dan fitur aplikasi tidak diubah.
+
+
+5. DAFTAR TABEL BISNIS
+----------------------
+
+A. AKUN DAN OTORISASI
+
+1. roles
+   Fungsi:
+   Menyimpan master role pengguna.
+
+   Kolom utama:
+   - id
+   - name
+   - label
+   - created_at
+   - updated_at
+
+   Constraint:
+   - name bersifat unique.
+
+2. users
+   Fungsi:
+   Menyimpan akun admin, author, dan user.
+
+   Kolom utama:
+   - id
+   - name
+   - email
+   - email_verified_at
+   - password
+   - photo
+   - role
+   - role_id
+   - account_status
+   - remember_token
+   - created_at
+   - updated_at
+
+   Constraint:
+   - email bersifat unique.
+   - role berupa enum admin, author, atau user.
+   - role_id berelasi ke roles.id.
+   - account_status default active.
+
+
+B. KONTEN MICROLEARNING
+
+3. categories
+   Fungsi:
+   Mengelompokkan artikel berdasarkan topik pembelajaran.
+
+   Kolom utama:
+   - id
+   - name
+   - slug
+   - created_at
+   - updated_at
+
+   Constraint:
+   - name unique.
+   - slug unique.
+
+4. articles
+   Fungsi:
+   Menyimpan materi microlearning.
+
+   Kolom utama:
+   - id
+   - category_id
+   - author_id
+   - title
+   - slug
+   - summary
+   - content
+   - quiz
+   - thumbnail_media_id
+   - status
+   - created_at
+   - updated_at
+   - deleted_at
+
+   Status yang digunakan aplikasi:
+   - draft
+   - review
+   - published
+   - rejected
+
+   Relasi:
+   - category_id menuju categories.id.
+   - author_id menuju users.id.
+   - thumbnail_media_id menuju media.id.
+
+   Catatan:
+   - slug bersifat unique.
+   - deleted_at mendukung soft delete.
+   - kolom quiz lama masih tersedia untuk kompatibilitas, sedangkan struktur
+     quiz aktif sudah dinormalisasi ke tabel quizzes.
+
+5. tags
+   Fungsi:
+   Menyimpan label atau tag artikel.
+
+   Kolom utama:
+   - id
+   - name
+   - slug
+   - created_at
+   - updated_at
+
+   Constraint:
+   - name unique.
+   - slug unique.
+
+6. article_tag
+   Fungsi:
+   Tabel pivot many-to-many antara articles dan tags.
+
+   Kolom utama:
+   - id
+   - article_id
+   - tag_id
+   - created_at
+   - updated_at
+
+   Constraint:
+   - Kombinasi article_id dan tag_id bersifat unique.
+
+7. media
+   Fungsi:
+   Menyimpan metadata file thumbnail dan gambar konten.
+
+   Kolom utama:
+   - id
+   - user_id
+   - disk
+   - folder
+   - path
+   - original_name
+   - mime_type
+   - size
+   - usage
+   - created_at
+   - updated_at
+
+   Nilai usage:
+   - thumbnail
+   - content
+
+
+C. REVIEW DAN REVISI ARTIKEL
+
+8. article_reviews
+   Fungsi:
+   Menyimpan keputusan admin terhadap artikel yang diajukan author.
+
+   Kolom utama:
+   - id
+   - article_id
+   - reviewer_id
+   - decision
+   - note
+   - created_at
+   - updated_at
+
+   Nilai decision:
+   - approved
+   - rejected
+
+   Relasi:
+   - article_id menuju articles.id.
+   - reviewer_id menuju users.id.
+
+9. article_revisions
+   Fungsi:
+   Menyimpan calon perubahan artikel yang sudah terbit tanpa langsung mengubah
+   versi publik.
+
+   Kolom utama:
+   - id
+   - article_id
+   - author_id
+   - category_id
+   - thumbnail_media_id
+   - title
+   - slug
+   - summary
+   - content
+   - quiz_data
+   - status
+   - reviewer_id
+   - review_note
+   - reviewed_at
+   - created_at
+   - updated_at
+
+   Status revisi:
+   - review
+   - approved
+   - rejected
+
+   Index penting:
+   - article_id dan status.
+   - author_id dan status.
+
+
+D. QUIZ
+
+10. quizzes
+    Fungsi:
+    Menyimpan quiz untuk satu artikel.
+
+    Kolom utama:
+    - id
+    - article_id
+    - title
+    - is_active
+    - created_at
+    - updated_at
+
+    Constraint:
+    - article_id unique, sehingga satu artikel mempunyai satu quiz aktif.
+
+11. quiz_questions
+    Fungsi:
+    Menyimpan pertanyaan quiz.
+
+    Kolom utama:
+    - id
+    - quiz_id
+    - question
+    - position
+    - created_at
+    - updated_at
+
+12. quiz_options
+    Fungsi:
+    Menyimpan pilihan jawaban.
+
+    Kolom utama:
+    - id
+    - quiz_question_id
+    - option_text
+    - is_correct
+    - position
+    - created_at
+    - updated_at
+
+13. quiz_attempts
+    Fungsi:
+    Menyimpan hasil pengerjaan quiz oleh user.
+
+    Kolom utama:
+    - id
+    - user_id
+    - article_id
+    - quiz_id
+    - score
+    - started_at
+    - submitted_at
+    - created_at
+    - updated_at
+
+14. quiz_attempt_answers
+    Fungsi:
+    Menyimpan jawaban per pertanyaan dalam satu quiz attempt.
+
+    Kolom utama:
+    - id
+    - quiz_attempt_id
+    - quiz_question_id
+    - quiz_option_id
+    - is_correct
+    - created_at
+    - updated_at
+
+
+E. AKTIVITAS BELAJAR
+
+15. article_views
+    Fungsi:
+    Mencatat kunjungan atau pembacaan artikel.
+
+    Kolom utama:
+    - id
+    - user_id
+    - article_id
+    - ip_address
+    - user_agent
+    - viewed_at
+
+    Catatan:
+    - user_id boleh null agar view guest tetap dapat dicatat.
+
+16. favorites
+    Fungsi:
+    Menyimpan artikel favorit user.
+
+    Kolom utama:
+    - id
+    - user_id
+    - article_id
+    - created_at
+
+    Constraint:
+    - Kombinasi user_id dan article_id unique.
+
+17. histories
+    Fungsi:
+    Menyimpan histori artikel yang dibaca user.
+
+    Kolom utama:
+    - id
+    - user_id
+    - article_id
+    - viewed_at
+
+18. learning_collections
+    Fungsi:
+    Menyimpan kelompok koleksi belajar milik user.
+
+    Kolom utama:
+    - id
+    - user_id
+    - name
+    - created_at
+    - updated_at
+
+    Constraint:
+    - Kombinasi user_id dan name unique.
+
+19. article_collections
+    Fungsi:
+    Menghubungkan artikel dengan koleksi belajar user.
+
+    Kolom utama:
+    - id
+    - user_id
+    - collection_id
+    - article_id
+    - created_at
+
+    Constraint:
+    - Kombinasi user_id dan article_id unique.
+
+
+F. OPERASIONAL ADMIN
+
+20. contact_messages
+    Fungsi:
+    Menyimpan pesan yang dikirim melalui halaman kontak.
+
+    Kolom utama:
+    - id
+    - user_id
+    - name
+    - email
+    - message
+    - read_at
+    - ip_address
+    - user_agent
+    - created_at
+    - updated_at
+    - deleted_at
+
+    Catatan:
+    - user_id boleh null untuk pesan dari guest.
+    - read_at menyimpan status sudah dibaca.
+    - deleted_at mendukung soft delete.
+
+21. audit_logs
+    Fungsi:
+    Mencatat aktivitas administratif penting.
+
+    Kolom utama:
+    - id
+    - actor_id
+    - action
+    - subject_type
+    - subject_id
+    - metadata
+    - ip_address
+    - user_agent
+    - created_at
+    - updated_at
+
+    Contoh aktivitas:
+    - article.approved
+    - article.rejected
+    - article.revision_approved
+    - user.role_updated
+    - user.status_updated
+    - message.read
+    - category.created
+
+
+6. TABEL INTERNAL LARAVEL
+-------------------------
+
+Tabel berikut digunakan oleh framework dan bukan tabel utama proses bisnis:
+
+1. migrations
+   Mencatat migration yang sudah dijalankan.
+
+2. sessions
+   Menyimpan session pengguna bila session database digunakan.
+
+3. password_reset_tokens
+   Menyimpan token reset password.
+
+4. cache
+   Menyimpan cache aplikasi.
+
+5. cache_locks
+   Menyimpan lock untuk proses cache.
+
+6. jobs
+   Menyimpan antrean pekerjaan.
+
+7. job_batches
+   Menyimpan batch pekerjaan antrean.
+
+8. failed_jobs
+   Menyimpan pekerjaan antrean yang gagal.
+
+
+7. RELASI UTAMA
+---------------
+
+1. roles 1 --- n users
+2. users 1 --- n articles
+3. categories 1 --- n articles
+4. users 1 --- n media
+5. articles n --- n tags melalui article_tag
+6. articles 1 --- 1 quizzes
+7. quizzes 1 --- n quiz_questions
+8. quiz_questions 1 --- n quiz_options
+9. users 1 --- n quiz_attempts
+10. articles 1 --- n quiz_attempts
+11. quiz_attempts 1 --- n quiz_attempt_answers
+12. articles 1 --- n article_reviews
+13. users 1 --- n article_reviews sebagai reviewer
+14. articles 1 --- n article_revisions
+15. users 1 --- n article_revisions sebagai author atau reviewer
+16. users n --- n articles melalui favorites
+17. users n --- n articles melalui article_collections
+18. users 1 --- n learning_collections
+19. users 1 --- n article_views
+20. articles 1 --- n article_views
+21. users 1 --- n contact_messages
+22. users 1 --- n audit_logs sebagai actor
+
+
+8. ATURAN FOREIGN KEY
+---------------------
+
+CASCADE ON DELETE digunakan untuk data yang tidak lagi relevan ketika induknya
+dihapus, misalnya:
+
+- Artikel ketika author atau kategori dihapus.
+- Quiz ketika artikel dihapus.
+- Pertanyaan ketika quiz dihapus.
+- Pilihan jawaban ketika pertanyaan dihapus.
+- Favorite dan koleksi ketika user atau artikel dihapus.
+
+SET NULL ON DELETE digunakan ketika riwayat masih perlu dipertahankan, misalnya:
+
+- Reviewer pada article_reviews.
+- Reviewer pada article_revisions.
+- Pemilik media.
+- User pada article_views.
+- User pada contact_messages.
+- Actor pada audit_logs.
+- Thumbnail media pada articles atau article_revisions.
+
+Seluruh foreign key menggunakan CASCADE ON UPDATE.
+
+
+9. ALUR DATA UTAMA
+------------------
+
+A. Registrasi dan login
+
+1. Pengunjung memilih role user atau author.
+2. Data akun disimpan di users.
+3. role_id menunjuk role yang sesuai.
+4. Akun aktif dapat melakukan login.
+5. Author wajib menggunakan email mahasiswa Sistem Informasi sesuai validasi
+   aplikasi.
+
+B. Publikasi artikel
+
+1. Admin atau author membuat artikel.
+2. Artikel author dimulai sebagai draft.
+3. Author mengirim artikel sehingga status menjadi review.
+4. Admin memberikan keputusan.
+5. Keputusan disimpan di article_reviews.
+6. Jika disetujui, artikel menjadi published.
+7. Jika ditolak, artikel menjadi rejected dan note diberikan kepada author.
+
+C. Revisi artikel terbit
+
+1. Author mengedit artikel published.
+2. Versi publik tidak langsung berubah.
+3. Calon versi baru disimpan di article_revisions.
+4. Admin menyetujui atau menolak revisi.
+5. Jika disetujui, data revisi diterapkan ke articles.
+
+D. Proses belajar
+
+1. User membuka artikel published.
+2. View dicatat di article_views.
+3. User dapat menyimpan favorite atau collection.
+4. User mengerjakan quiz.
+5. Hasil disimpan di quiz_attempts dan quiz_attempt_answers.
+
+E. Operasional admin
+
+1. Pesan pengunjung disimpan di contact_messages.
+2. Admin dapat menandai pesan sudah atau belum dibaca.
+3. Aktivitas penting dicatat di audit_logs.
+
+
+10. DATA DATABASE SAAT PEMERIKSAAN
+----------------------------------
+
+Jumlah record bisnis:
+
+- users                : 3
+- roles                : 3
+- articles             : 4
+- categories           : 5
+- tags                 : 0
+- media                : 5
+- quizzes              : 1
+- quiz_questions       : 1
+- quiz_options         : 3
+- quiz_attempts        : 8
+- article_reviews      : 1
+- article_revisions    : 0
+- article_views        : 55
+- favorites            : 1
+- histories            : 0
+- article_collections  : 1
+- learning_collections : 2
+- contact_messages     : 0
+- audit_logs           : 0
+
+Distribusi user:
+
+- admin  : 1
+- author : 1
+- user   : 1
+
+Distribusi artikel:
+
+- published : 4
+- draft     : 0
+- review    : 0
+- rejected  : 0
+
+Kategori:
+
+- Programming       : 2 artikel
+- Produktivitas     : 1 artikel
+- Desain            : 1 artikel
+- Digital Marketing : 0 artikel
+- Karir & Freelance : 0 artikel
+
+
+11. DAFTAR MIGRATION
+--------------------
+
+Seluruh migration berikut berstatus Ran:
+
+1. 0001_01_01_000000_create_users_table
+2. 0001_01_01_000001_create_cache_table
+3. 0001_01_01_000002_create_jobs_table
+4. 2026_05_07_000001_create_categories_table
+5. 2026_05_07_000002_create_articles_table
+6. 2026_05_07_000003_create_favorites_table
+7. 2026_05_07_000004_create_histories_table
+8. 2026_06_03_000001_add_author_role_to_users_table
+9. 2026_06_05_000001_add_quiz_to_articles_table
+10. 2026_06_05_000002_create_roles_and_add_role_id_to_users_table
+11. 2026_06_05_000003_create_media_table_and_add_article_thumbnail_media_id
+12. 2026_06_05_000004_create_tags_and_article_tags_tables
+13. 2026_06_05_000005_create_normalized_quiz_tables
+14. 2026_06_05_000006_create_article_views_and_quiz_attempt_tables
+15. 2026_06_05_000007_create_article_collections_table
+16. 2026_06_06_000001_add_article_review_workflow
+17. 2026_06_06_000002_migrate_article_thumbnails_to_storage
+18. 2026_06_06_000003_make_user_photo_nullable
+19. 2026_06_06_000004_create_contact_messages_table
+20. 2026_06_08_000001_create_learning_collections_table
+21. 2026_06_08_000002_add_english_fields_to_articles_table
+22. 2026_06_08_000003_drop_english_fields_from_articles_table
+23. 2026_06_08_000004_add_admin_operational_fields
+24. 2026_06_08_000005_create_article_revisions_table
+
+
+12. VALIDASI INTEGRITAS
+-----------------------
+
+Hasil validasi terakhir:
+
+- Semua migration sudah dijalankan.
+- Jumlah role sesuai: admin, author, dan user.
+- Tidak ada role_id yang tidak memiliki master role.
+- Tidak ada perbedaan users.role dengan roles.name.
+- Tidak ada referensi ke akun demo lama.
+- Tidak ada artikel tanpa author.
+- Tidak ada artikel tanpa kategori.
+- Tidak ada orphan pada relasi aktivitas belajar utama.
+- Email user bersifat unique.
+- Slug artikel dan kategori bersifat unique.
+- Favorite tidak dapat diduplikasi untuk user dan artikel yang sama.
+- Koleksi artikel tidak dapat diduplikasi untuk user dan artikel yang sama.
+- Satu artikel hanya memiliki satu quiz utama.
+
+
+13. CATATAN DESAIN DATABASE
+---------------------------
+
+1. Kolom users.role dan users.role_id menyimpan informasi yang sama.
+   Hal ini masih aman karena model User melakukan sinkronisasi otomatis.
+
+2. Validasi email author berada pada lapisan aplikasi, bukan constraint database.
+   Pendekatan ini sesuai karena aturan email merupakan aturan bisnis registrasi.
+
+3. Status articles menggunakan varchar agar workflow draft, review, published,
+   dan rejected dapat berkembang tanpa perubahan enum database.
+
+4. article_revisions memisahkan revisi dari artikel publik sehingga perubahan
+   author tidak langsung terlihat pembaca sebelum disetujui admin.
+
+5. Foreign key dan aturan delete sudah mendukung integritas data.
+
+6. Tabel tags sudah tersedia tetapi belum memiliki data pada database lokal.
+   Ini bukan error; fitur dapat digunakan ketika tagging artikel diperlukan.
+
+
+14. KESIMPULAN
+--------------
+
+Database InnoBit sudah sesuai untuk kebutuhan website microlearning dengan tiga
+peran pengguna, workflow artikel dan approval, quiz, aktivitas belajar, pesan,
+serta operasi admin.
+
+Data akun demo ganda telah dirapikan tanpa menghilangkan data terkait. Seluruh
+referensi dipindahkan ke akun canonical dan hasil pemeriksaan tidak menemukan
+orphan foreign key maupun ketidaksesuaian role.
+
+Database dinyatakan siap digunakan dan siap disertakan dalam pengumpulan
+project, dengan catatan file .env dan kredensial produksi tidak boleh dibagikan
+ke repository publik.

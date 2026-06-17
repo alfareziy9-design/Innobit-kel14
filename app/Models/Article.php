@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\ArticleRevisionStatus;
+use App\Enums\ArticleStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -110,5 +112,31 @@ class Article extends Model
     public function latestRevision()
     {
         return $this->hasOne(ArticleRevision::class)->latestOfMany();
+    }
+
+    public function statusMeta(): array
+    {
+        $status = ArticleStatus::from($this->status);
+
+        return [
+            'label' => $status->label(),
+            'class' => $status->badgeClass(),
+            'dot' => $status->dotClass(),
+        ];
+    }
+
+    public function revisionStatusMeta(): ?array
+    {
+        if (! $this->latestRevision || $this->latestRevision->status === ArticleRevisionStatus::Approved->value) {
+            return null;
+        }
+
+        $status = ArticleRevisionStatus::from($this->latestRevision->status);
+
+        return [
+            'label' => $status->label(),
+            'class' => $status->badgeClass(),
+            'dot' => $status->dotClass(),
+        ];
     }
 }

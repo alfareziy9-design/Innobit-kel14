@@ -6,6 +6,8 @@ use App\Models\Article;
 use App\Models\Category;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ArticleReviewWorkflowTest extends TestCase
@@ -47,7 +49,9 @@ class ArticleReviewWorkflowTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.articles.reject', $article), ['note' => 'Tambahkan contoh praktik.'])
-            ->assertSessionHasNoErrors();
+            ->assertRedirect(route('admin.dashboard'))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success', 'Artikel dikembalikan kepada author untuk diperbaiki.');
 
         $this->actingAs($author)
             ->put(route('articles.update', $article), [
@@ -189,7 +193,9 @@ class ArticleReviewWorkflowTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.articles.revisions.reject', [$article, $revision]), ['note' => 'Perjelas contoh.'])
-            ->assertSessionHasNoErrors();
+            ->assertRedirect(route('admin.dashboard'))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success', 'Pembaruan dikembalikan kepada author untuk diperbaiki.');
 
         $article->refresh();
         $revision->refresh();
@@ -202,8 +208,165 @@ class ArticleReviewWorkflowTest extends TestCase
         $this->actingAs($author)
             ->get(route('author.dashboard'))
             ->assertOk()
-            ->assertSee('Revisi published ditolak:')
+            ->assertSee('Pembaruan Perlu Perbaikan')
+            ->assertSee('Alasan pembaruan perlu diperbaiki:')
             ->assertSee('Perjelas contoh.');
+    }
+
+    public function test_admin_can_edit_article_content_and_thumbnail_during_review(): void
+    {
+        Storage::fake('public');
+        [$admin, , $article] = $this->workflowFixtures('review');
+
+        $this->actingAs($admin)
+            ->get(route('admin.articles.review.edit', $article))
+            ->assertOk()
+            ->assertSee('Edit Artikel dalam Review')
+            ->assertSee('Thumbnail Saat Ini')
+            ->assertSee('data-summernote-editor', false)
+            ->assertSee('summernote@0.9.1/dist/summernote-lite.min.js', false)
+            ->assertSee(route('admin.articles.review.update', $article), false);
+
+        $this->actingAs($admin)
+            ->put(route('admin.articles.review.update', $article), [
+                'title' => 'Artikel Diperbaiki Admin',
+                'category_id' => $article->category_id,
+                'summary' => 'Ringkasan diperbaiki admin.',
+                'content' => '<p>Konten diperbaiki admin.</p>',
+                'quizzes' => $this->quizPayload(),
+                'thumbnail' => $this->fakePng('review-thumbnail.png'),
+            ])
+            ->assertRedirect(route('admin.articles.review', $article))
+            ->assertSessionHasNoErrors();
+
+        $article->refresh()->load('thumbnailMedia');
+
+        $this->assertSame('review', $article->status);
+        $this->assertSame('Artikel Diperbaiki Admin', $article->title);
+        $this->assertNotNull($article->thumbnailMedia);
+        $this->assertStringStartsWith('/storage/article/thumbnails/', $article->thumbnailMedia->url);
+        Storage::disk('public')->assertExists($article->thumbnailMedia->path);
+    }
+
+    public function test_admin_can_edit_pending_revision_without_changing_public_article(): void
+    {
+        Storage::fake('public');
+        [$admin, $author, $article] = $this->workflowFixtures('published');
+        $revision = $article->revisions()->create([
+            'author_id' => $author->id,
+            'category_id' => $article->category_id,
+            'title' => 'Pembaruan Awal',
+            'slug' => 'pembaruan-awal',
+            'summary' => 'Ringkasan pembaruan awal.',
+            'content' => '<p>Konten pembaruan awal.</p>',
+            'quiz_data' => $this->quizPayload(),
+            'status' => 'review',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.articles.revisions.review.edit', [$article, $revision]))
+            ->assertOk()
+            ->assertSee('Edit Pembaruan dalam Review')
+            ->assertSee('Pembaruan Awal')
+            ->assertSee(route('admin.articles.revisions.review.update', [$article, $revision]), false);
+
+        $this->actingAs($admin)
+            ->put(route('admin.articles.revisions.review.update', [$article, $revision]), [
+                'title' => 'Pembaruan Diperbaiki Admin',
+                'category_id' => $article->category_id,
+                'summary' => 'Ringkasan pembaruan diperbaiki.',
+                'content' => '<p>Konten pembaruan diperbaiki admin.</p>',
+                'quizzes' => $this->quizPayload(),
+                'thumbnail' => $this->fakePng('revision-thumbnail.png'),
+            ])
+            ->assertRedirect(route('admin.articles.revisions.review', [$article, $revision]))
+            ->assertSessionHasNoErrors();
+
+        $article->refresh();
+        $revision->refresh()->load('thumbnailMedia');
+
+        $this->assertSame('Artikel Workflow', $article->title);
+        $this->assertSame('published', $article->status);
+        $this->assertSame('Pembaruan Diperbaiki Admin', $revision->title);
+        $this->assertSame('review', $revision->status);
+        $this->assertNotNull($revision->thumbnailMedia);
+        Storage::disk('public')->assertExists($revision->thumbnailMedia->path);
+    }
+
+    public function test_author_cannot_edit_while_published_revision_is_waiting_for_review(): void
+    {
+        [, $author, $article] = $this->workflowFixtures('published');
+
+        $this->actingAs($author)
+            ->put(route('articles.update', $article), [
+                'title' => 'Pembaruan Pertama',
+                'category_id' => $article->category_id,
+                'summary' => 'Ringkasan pembaruan.',
+                'content' => 'Konten pembaruan.',
+                'quizzes' => $this->quizPayload(),
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($author)->get(route('articles.edit', $article))->assertForbidden();
+
+        $this->actingAs($author)
+            ->post(route('articles.revisions.store', $article), [
+                'title' => 'Pembaruan Kedua',
+                'category_id' => $article->category_id,
+                'summary' => 'Tidak boleh ditimpa.',
+                'content' => 'Tidak boleh ditimpa.',
+                'quizzes' => $this->quizPayload(),
+            ])
+            ->assertStatus(422);
+
+        $this->assertDatabaseCount('article_revisions', 1);
+        $this->assertDatabaseHas('article_revisions', [
+            'article_id' => $article->id,
+            'title' => 'Pembaruan Pertama',
+            'status' => 'review',
+        ]);
+    }
+
+    public function test_author_cannot_delete_review_or_published_article(): void
+    {
+        [, $author, $reviewArticle] = $this->workflowFixtures('review');
+        $publishedArticle = Article::create([
+            'category_id' => $reviewArticle->category_id,
+            'author_id' => $author->id,
+            'title' => 'Artikel Terbit',
+            'slug' => 'artikel-terbit',
+            'summary' => 'Ringkasan.',
+            'content' => 'Konten.',
+            'status' => 'published',
+        ]);
+
+        $this->actingAs($author)->delete(route('articles.destroy', $reviewArticle))->assertStatus(422);
+        $this->actingAs($author)->delete(route('articles.destroy', $publishedArticle))->assertStatus(422);
+
+        $this->assertDatabaseHas('articles', ['id' => $reviewArticle->id, 'deleted_at' => null]);
+        $this->assertDatabaseHas('articles', ['id' => $publishedArticle->id, 'deleted_at' => null]);
+    }
+
+    public function test_author_dashboard_keeps_publication_and_revision_status_separate(): void
+    {
+        [, $author, $article] = $this->workflowFixtures('published');
+
+        $article->revisions()->create([
+            'author_id' => $author->id,
+            'category_id' => $article->category_id,
+            'title' => 'Pembaruan Menunggu Review',
+            'slug' => 'pembaruan-menunggu-review',
+            'summary' => 'Ringkasan.',
+            'content' => 'Konten.',
+            'status' => 'review',
+        ]);
+
+        $this->actingAs($author)
+            ->get(route('author.dashboard'))
+            ->assertOk()
+            ->assertSee('Terbit')
+            ->assertSee('Pembaruan Menunggu Review')
+            ->assertDontSee('Buat pembaruan');
     }
 
     public function test_non_admin_cannot_approve_or_reject_articles(): void
@@ -262,5 +425,13 @@ class ArticleReviewWorkflowTest extends TestCase
             ],
             'correct_option' => 1,
         ]];
+    }
+
+    private function fakePng(string $name): UploadedFile
+    {
+        return UploadedFile::fake()->createWithContent(
+            $name,
+            base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nS8AAAAASUVORK5CYII=')
+        );
     }
 }

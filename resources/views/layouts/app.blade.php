@@ -10,6 +10,7 @@
     <title>@yield('title', 'InnoBit')</title>
     <script src="https://cdn.tailwindcss.com"></script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @stack('styles')
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen">
     @include('partials.navbar')
@@ -19,5 +20,6 @@
     </main>
 
     @include('partials.footer')
+    @stack('scripts')
 </body>
 </html>

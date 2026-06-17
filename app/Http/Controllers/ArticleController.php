@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ArticleRevisionStatus;
+use App\Enums\ArticleStatus;
 use App\Models\Article;
 use App\Models\ArticleCollection;
 use App\Models\ArticleRevision;
@@ -12,6 +14,7 @@ use App\Models\Favorite;
 use App\Models\LearningCollection;
 use App\Models\Media;
 use App\Models\QuizAttempt;
+use App\Services\ArticleWorkflow;
 use DOMDocument;
 use DOMElement;
 use DOMNode;
@@ -25,6 +28,8 @@ use Throwable;
 
 class ArticleController extends Controller
 {
+    public function __construct(private readonly ArticleWorkflow $workflow) {}
+
     public function show(Request $request, string $slug)
     {
         $user = $request->user();
@@ -152,9 +157,11 @@ class ArticleController extends Controller
         $data['thumbnail_media_id'] = $thumbnailMedia->id;
 
         try {
-            DB::transaction(function () use ($data, $quizData): void {
+            $article = DB::transaction(function () use ($data, $quizData): Article {
                 $article = Article::create($data);
                 $this->syncArticleQuiz($article, $quizData);
+
+                return $article;
             });
         } catch (Throwable $exception) {
             $this->deleteMedia($thumbnailMedia);
@@ -162,15 +169,19 @@ class ArticleController extends Controller
             throw $exception;
         }
 
+        AuditLog::record('article.created', $article, [
+            'status' => $article->status,
+        ]);
+
         return redirect()->route($request->user()->isAdmin() ? 'admin.dashboard' : 'author.dashboard')
             ->with('success', $request->user()->isAdmin()
                 ? 'Artikel berhasil ditambahkan.'
-                : 'Artikel berhasil ditambahkan sebagai draft untuk direview admin.');
+                : 'Artikel berhasil disimpan sebagai Draft. Kirim untuk review saat naskah siap.');
     }
 
     public function edit(Article $article)
     {
-        $this->authorizeArticleOwnership($article);
+        $this->authorizeArticleEdit($article);
         $this->ensureAuthorCanEdit($article);
         $article->load('normalizedQuiz.questions.options', 'thumbnailMedia', 'latestReview.reviewer', 'latestRevision.thumbnailMedia');
 
@@ -184,7 +195,7 @@ class ArticleController extends Controller
 
     public function update(Request $request, Article $article)
     {
-        $this->authorizeArticleOwnership($article);
+        $this->authorizeArticleEdit($article);
         $this->ensureAuthorCanEdit($article);
 
         if (! $request->user()->isAdmin() && $article->status === 'published') {
@@ -227,39 +238,194 @@ class ArticleController extends Controller
             $this->deleteMedia($oldThumbnailMedia);
         }
 
+        AuditLog::record('article.updated', $article, [
+            'status' => $article->status,
+        ]);
+
         return back()->with('success', 'Artikel berhasil diperbarui.');
+    }
+
+    public function editReviewArticle(Article $article)
+    {
+        $this->ensureAdminCanEditReviewArticle($article);
+        $article->load(['normalizedQuiz.questions.options', 'thumbnailMedia', 'author', 'category']);
+        $categories = Category::orderBy('name')->get();
+
+        return view('admin.articles.edit-review', [
+            'article' => $article,
+            'editorSource' => $article,
+            'categories' => $categories,
+            'formAction' => route('admin.articles.review.update', $article),
+            'reviewUrl' => route('admin.articles.review', $article),
+            'pageTitle' => 'Edit Artikel dalam Review',
+        ]);
+    }
+
+    public function updateReviewArticle(Request $request, Article $article)
+    {
+        $this->ensureAdminCanEditReviewArticle($article);
+
+        $data = $this->validatedReviewArticleData($request);
+        $data['content'] = $this->sanitizeArticleContent($data['content']);
+        $quizData = $this->normalizedQuizData($data);
+        $data['slug'] = $this->uniqueSlug($data['title'], $article->id);
+        $data['status'] = ArticleStatus::Review->value;
+
+        $oldThumbnailMedia = $article->thumbnailMedia;
+        $newThumbnailMedia = $request->hasFile('thumbnail')
+            ? $this->storeThumbnail($request)
+            : null;
+
+        if ($newThumbnailMedia) {
+            $data['thumbnail_media_id'] = $newThumbnailMedia->id;
+        }
+
+        try {
+            DB::transaction(function () use ($article, $data, $quizData): void {
+                $lockedArticle = Article::whereKey($article->id)->lockForUpdate()->firstOrFail();
+                abort_unless(
+                    $lockedArticle->status === ArticleStatus::Review->value,
+                    422,
+                    'Artikel ini tidak sedang Menunggu Review.'
+                );
+
+                $lockedArticle->update($data);
+                $this->syncArticleQuiz($lockedArticle, $quizData);
+            });
+        } catch (Throwable $exception) {
+            if ($newThumbnailMedia) {
+                $this->deleteMedia($newThumbnailMedia);
+            }
+
+            throw $exception;
+        }
+
+        if ($newThumbnailMedia && $oldThumbnailMedia) {
+            $this->deleteMedia($oldThumbnailMedia);
+        }
+
+        AuditLog::record('article.review_content_updated', $article, [
+            'status' => ArticleStatus::Review->value,
+        ]);
+
+        return redirect()
+            ->route('admin.articles.review', $article)
+            ->with('success', 'Konten artikel diperbarui dan tetap menunggu keputusan review.');
+    }
+
+    public function editReviewRevision(Article $article, ArticleRevision $revision)
+    {
+        $this->ensureAdminCanEditReviewRevision($article, $revision);
+        $article->load(['thumbnailMedia', 'author', 'category']);
+        $revision->load(['thumbnailMedia', 'author', 'category']);
+        $categories = Category::orderBy('name')->get();
+
+        return view('admin.articles.edit-review', [
+            'article' => $article,
+            'revision' => $revision,
+            'editorSource' => $revision,
+            'categories' => $categories,
+            'formAction' => route('admin.articles.revisions.review.update', [$article, $revision]),
+            'reviewUrl' => route('admin.articles.revisions.review', [$article, $revision]),
+            'pageTitle' => 'Edit Pembaruan dalam Review',
+        ]);
+    }
+
+    public function updateReviewRevision(Request $request, Article $article, ArticleRevision $revision)
+    {
+        $this->ensureAdminCanEditReviewRevision($article, $revision);
+
+        $data = $this->validatedReviewArticleData($request);
+        $data['content'] = $this->sanitizeArticleContent($data['content']);
+        $quizData = $this->normalizedQuizData($data);
+        $data['slug'] = $this->uniqueSlug($data['title'], $article->id);
+        $data['quiz_data'] = $quizData;
+        $data['status'] = ArticleRevisionStatus::Review->value;
+        $data['reviewer_id'] = null;
+        $data['review_note'] = null;
+        $data['reviewed_at'] = null;
+
+        $oldThumbnailMedia = $revision->thumbnailMedia;
+        $newThumbnailMedia = $request->hasFile('thumbnail')
+            ? $this->storeThumbnail($request)
+            : null;
+
+        if ($newThumbnailMedia) {
+            $data['thumbnail_media_id'] = $newThumbnailMedia->id;
+        }
+
+        try {
+            DB::transaction(function () use ($article, $revision, $data): void {
+                $lockedArticle = Article::whereKey($article->id)->lockForUpdate()->firstOrFail();
+                $lockedRevision = ArticleRevision::whereKey($revision->id)->lockForUpdate()->firstOrFail();
+
+                $this->ensureAdminCanEditReviewRevision($lockedArticle, $lockedRevision);
+                $lockedRevision->update($data);
+            });
+        } catch (Throwable $exception) {
+            if ($newThumbnailMedia) {
+                $this->deleteMedia($newThumbnailMedia);
+            }
+
+            throw $exception;
+        }
+
+        if ($newThumbnailMedia && $oldThumbnailMedia && $oldThumbnailMedia->id !== $article->thumbnail_media_id) {
+            $this->deleteMedia($oldThumbnailMedia);
+        }
+
+        AuditLog::record('article.revision_review_content_updated', $revision, [
+            'article_id' => $article->id,
+        ]);
+
+        return redirect()
+            ->route('admin.articles.revisions.review', [$article, $revision])
+            ->with('success', 'Konten pembaruan diperbarui. Versi publik tetap tayang sampai pembaruan disetujui.');
     }
 
     public function storeRevision(Request $request, Article $article)
     {
-        $this->authorizeArticleOwnership($article);
+        $this->authorizeArticleEdit($article);
         abort_if($request->user()->isAdmin(), 403, 'Aksi ini khusus untuk penulis.');
-        abort_unless($article->status === 'published', 422, 'Revisi terpisah hanya tersedia untuk artikel published.');
+        abort_unless($article->status === ArticleStatus::Published->value, 422, 'Pembaruan terpisah hanya tersedia untuk artikel Terbit.');
+        abort_if(
+            $article->revisions()->where('status', ArticleRevisionStatus::Review->value)->exists(),
+            422,
+            'Pembaruan artikel ini sedang direview dan belum dapat diubah.'
+        );
 
         $data = $this->validatedArticleData($request, false);
         $data['content'] = $this->sanitizeArticleContent($data['content']);
         $quizData = $this->normalizedQuizData($data);
         $data['slug'] = $this->uniqueSlug($data['title'], $article->id);
 
-        $revision = $article->revisions()
-            ->whereIn('status', ['review', 'rejected'])
-            ->latest()
-            ->first();
         $newThumbnailMedia = $request->hasFile('thumbnail')
             ? $this->storeThumbnail($request)
             : null;
-        $oldRevisionThumbnailMedia = $revision?->thumbnailMedia;
-        $data['thumbnail_media_id'] = $newThumbnailMedia?->id
-            ?? $revision?->thumbnail_media_id
-            ?? $article->thumbnail_media_id;
+        $oldRevisionThumbnailMedia = null;
 
         try {
-            DB::transaction(function () use ($article, $request, $revision, $data, $quizData): void {
+            DB::transaction(function () use ($article, $request, &$oldRevisionThumbnailMedia, $data, $quizData, $newThumbnailMedia): void {
+                $lockedArticle = Article::whereKey($article->id)->lockForUpdate()->firstOrFail();
+                abort_if(
+                    $lockedArticle->revisions()->where('status', ArticleRevisionStatus::Review->value)->exists(),
+                    422,
+                    'Pembaruan artikel ini sedang direview dan belum dapat diubah.'
+                );
+
+                $revision = $lockedArticle->revisions()
+                    ->where('status', ArticleRevisionStatus::Rejected->value)
+                    ->latest()
+                    ->first();
+                $oldRevisionThumbnailMedia = $revision?->thumbnailMedia;
                 $payload = [
                     ...$data,
                     'author_id' => $request->user()->id,
+                    'thumbnail_media_id' => $newThumbnailMedia?->id
+                        ?? $revision?->thumbnail_media_id
+                        ?? $lockedArticle->thumbnail_media_id,
                     'quiz_data' => $quizData,
-                    'status' => 'review',
+                    'status' => ArticleRevisionStatus::Review->value,
                     'reviewer_id' => null,
                     'review_note' => null,
                     'reviewed_at' => null,
@@ -268,7 +434,7 @@ class ArticleController extends Controller
                 if ($revision) {
                     $revision->update($payload);
                 } else {
-                    $article->revisions()->create($payload);
+                    $lockedArticle->revisions()->create($payload);
                 }
             });
         } catch (Throwable $exception) {
@@ -287,23 +453,40 @@ class ArticleController extends Controller
             'title' => $data['title'],
         ]);
 
-        return redirect()->route('author.dashboard')->with('success', 'Revisi artikel berhasil dikirim untuk review admin. Versi published lama tetap tayang.');
+        return redirect()->route('author.dashboard')->with('success', 'Pembaruan berhasil dikirim untuk review. Versi Terbit tetap tayang sampai pembaruan disetujui.');
     }
 
     public function submitForReview(Request $request, Article $article)
     {
-        $this->authorizeArticleOwnership($article);
+        $this->authorizeArticleEdit($article);
         abort_if($request->user()->isAdmin(), 403, 'Aksi ini khusus untuk penulis.');
-        abort_unless(in_array($article->status, ['draft', 'rejected'], true), 422, 'Artikel tidak dapat dikirim untuk review.');
 
-        $article->update(['status' => 'review']);
+        $previousStatus = $article->status;
+        $submittedArticle = $this->workflow->submit($article);
+        AuditLog::record(
+            $previousStatus === ArticleStatus::Rejected->value ? 'article.resubmitted' : 'article.submitted',
+            $submittedArticle,
+            [
+                'from' => $previousStatus,
+                'to' => ArticleStatus::Review->value,
+            ]
+        );
 
-        return back()->with('success', 'Artikel berhasil dikirim untuk review admin.');
+        return back()->with('success', 'Artikel berhasil dikirim dan kini Menunggu Review admin.');
     }
 
     public function destroy(Article $article)
     {
         $this->authorizeArticleOwnership($article);
+        $user = auth()->user();
+
+        if (! $user->isAdmin()) {
+            abort_unless(
+                in_array($article->status, [ArticleStatus::Draft->value, ArticleStatus::Rejected->value], true),
+                422,
+                'Author hanya dapat menghapus artikel berstatus Draft atau Perlu Perbaikan.'
+            );
+        }
 
         DB::transaction(fn () => $article->delete());
         AuditLog::record('article.deleted', $article, [
@@ -438,6 +621,39 @@ class ArticleController extends Controller
         ]);
     }
 
+    private function validatedReviewArticleData(Request $request): array
+    {
+        return $request->validate([
+            'title' => ['required', 'string', 'max:200'],
+            'category_id' => ['required', 'exists:categories,id'],
+            'summary' => ['required', 'string', 'max:1000'],
+            'content' => ['required', 'string'],
+            'quizzes' => ['required', 'array', 'min:1', 'max:3'],
+            'quizzes.*.question' => ['required', 'string', 'max:500'],
+            'quizzes.*.options' => ['required', 'array', 'size:3'],
+            'quizzes.*.options.*' => ['required', 'string', 'max:300'],
+            'quizzes.*.correct_option' => ['required', 'integer', 'between:0,2'],
+            'thumbnail' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ], [
+            'title.required' => 'Judul wajib diisi.',
+            'category_id.required' => 'Kategori wajib dipilih.',
+            'category_id.exists' => 'Kategori tidak valid.',
+            'summary.required' => 'Ringkasan wajib diisi.',
+            'summary.max' => 'Ringkasan maksimal 1000 karakter.',
+            'content.required' => 'Isi artikel wajib diisi.',
+            'quizzes.required' => 'Artikel wajib memiliki minimal 1 quiz.',
+            'quizzes.min' => 'Artikel wajib memiliki minimal 1 quiz.',
+            'quizzes.max' => 'Artikel maksimal memiliki 3 quiz.',
+            'quizzes.*.question.required' => 'Pertanyaan quiz wajib diisi.',
+            'quizzes.*.options.size' => 'Setiap quiz harus memiliki 3 pilihan jawaban.',
+            'quizzes.*.options.*.required' => 'Semua pilihan jawaban quiz wajib diisi.',
+            'quizzes.*.correct_option.required' => 'Jawaban benar quiz wajib dipilih.',
+            'thumbnail.image' => 'Thumbnail harus berupa gambar.',
+            'thumbnail.mimes' => 'Thumbnail harus berupa JPG, JPEG, PNG, atau WEBP.',
+            'thumbnail.max' => 'Ukuran thumbnail maksimal 2MB.',
+        ]);
+    }
+
     private function normalizedQuizData(array &$data): ?array
     {
         $quizzes = collect($data['quizzes'] ?? [])
@@ -468,13 +684,63 @@ class ArticleController extends Controller
         }
     }
 
+    private function authorizeArticleEdit(Article $article): void
+    {
+        $user = auth()->user();
+
+        if (! $user || $article->author_id !== $user->id) {
+            abort(403, $user?->isAdmin()
+                ? 'Admin hanya dapat mengedit artikel miliknya sendiri.'
+                : 'Kamu hanya bisa mengelola artikel milikmu sendiri.');
+        }
+    }
+
     private function ensureAuthorCanEdit(Article $article): void
     {
         $user = auth()->user();
 
-        if ($user && ! $user->isAdmin() && $article->status === 'review') {
+        if ($user && ! $user->isAdmin() && $article->status === ArticleStatus::Review->value) {
             abort(403, 'Artikel sedang direview dan belum dapat diedit.');
         }
+
+        if ($user && ! $user->isAdmin() && $article->revisions()->where('status', ArticleRevisionStatus::Review->value)->exists()) {
+            abort(403, 'Pembaruan artikel sedang direview dan belum dapat diedit.');
+        }
+    }
+
+    private function ensureAdminCanEditReviewArticle(Article $article): void
+    {
+        $user = auth()->user();
+
+        abort_unless($user?->isAdmin(), 403);
+        abort_unless(
+            $article->status === ArticleStatus::Review->value,
+            422,
+            'Artikel ini tidak sedang Menunggu Review.'
+        );
+        abort_if(
+            $article->author_id === $user->id,
+            422,
+            'Gunakan halaman edit artikel untuk mengelola artikel admin sendiri.'
+        );
+    }
+
+    private function ensureAdminCanEditReviewRevision(Article $article, ArticleRevision $revision): void
+    {
+        $user = auth()->user();
+
+        abort_unless($user?->isAdmin(), 403);
+        abort_unless($revision->article_id === $article->id, 404);
+        abort_unless(
+            $revision->status === ArticleRevisionStatus::Review->value,
+            422,
+            'Pembaruan ini tidak sedang Menunggu Review.'
+        );
+        abort_if(
+            $article->author_id === $user->id,
+            422,
+            'Admin tidak dapat mereview pembaruan artikelnya sendiri.'
+        );
     }
 
     private function uniqueSlug(string $title, ?int $ignoreId = null): string
@@ -483,7 +749,10 @@ class ArticleController extends Controller
         $slug = $baseSlug;
         $counter = 2;
 
-        while (Article::where('slug', $slug)->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))->exists()) {
+        while (Article::withTrashed()
+            ->where('slug', $slug)
+            ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->exists()) {
             $slug = $baseSlug.'-'.$counter++;
         }
 
@@ -602,8 +871,9 @@ class ArticleController extends Controller
     private function sanitizeNode(DOMNode $node): void
     {
         $allowedTags = [
-            'a', 'blockquote', 'br', 'caption', 'em', 'figcaption', 'figure', 'h2', 'h3', 'h4',
-            'img', 'li', 'ol', 'p', 'span', 'strong', 'table', 'tbody', 'td', 'th', 'thead', 'tr', 'u', 'ul',
+            'a', 'blockquote', 'br', 'caption', 'div', 'em', 'figcaption', 'figure', 'h2', 'h3', 'h4',
+            'hr', 'img', 'li', 'ol', 'p', 'pre', 's', 'span', 'strike', 'strong', 'sub', 'sup',
+            'table', 'tbody', 'td', 'th', 'thead', 'tr', 'u', 'ul',
         ];
 
         foreach (iterator_to_array($node->childNodes) as $child) {
@@ -647,11 +917,19 @@ class ArticleController extends Controller
             'img' => ['src', 'alt', 'title', 'width', 'height', 'class', 'style'],
             'figure' => ['class', 'style'],
             'figcaption' => ['class', 'style'],
+            'blockquote' => ['class', 'style'],
+            'div' => ['class', 'style'],
+            'h2' => ['class', 'style'],
+            'h3' => ['class', 'style'],
+            'h4' => ['class', 'style'],
+            'li' => ['class', 'style'],
             'p' => ['class', 'style'],
+            'pre' => ['class', 'style'],
             'span' => ['class', 'style'],
-            'table' => ['class'],
-            'td' => ['colspan', 'rowspan'],
-            'th' => ['colspan', 'rowspan'],
+            'table' => ['class', 'style'],
+            'td' => ['colspan', 'rowspan', 'style'],
+            'th' => ['colspan', 'rowspan', 'style'],
+            'tr' => ['style'],
         ];
 
         $tagName = strtolower($element->tagName);
@@ -755,6 +1033,8 @@ class ArticleController extends Controller
             'article-media--full',
             'article-media--left',
             'article-media--right',
+            'table',
+            'table-bordered',
         ];
 
         return collect(preg_split('/\s+/', $class))
@@ -764,7 +1044,19 @@ class ArticleController extends Controller
 
     private function sanitizeStyleAttribute(string $style): string
     {
-        $allowedProperties = ['height', 'margin-left', 'margin-right', 'text-align', 'width'];
+        $allowedProperties = [
+            'background-color',
+            'color',
+            'float',
+            'font-family',
+            'font-size',
+            'height',
+            'line-height',
+            'margin-left',
+            'margin-right',
+            'text-align',
+            'width',
+        ];
         $clean = [];
 
         foreach (explode(';', $style) as $declaration) {
@@ -784,7 +1076,28 @@ class ArticleController extends Controller
                 continue;
             }
 
-            if ($property === 'text-align' && ! in_array($value, ['left', 'center', 'right'], true)) {
+            if ($property === 'font-size' && ! preg_match('/^\d{1,3}(\.\d+)?(px|pt|em|rem|%)$/', $value)) {
+                continue;
+            }
+
+            if ($property === 'line-height' && ! preg_match('/^\d{1,2}(\.\d+)?(px|em|rem|%)?$/', $value)) {
+                continue;
+            }
+
+            if ($property === 'font-family' && ! preg_match('/^[\w\s,"\-]+$/u', $value)) {
+                continue;
+            }
+
+            if (in_array($property, ['color', 'background-color'], true)
+                && ! preg_match('/^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|[a-z]+)$/i', $value)) {
+                continue;
+            }
+
+            if ($property === 'float' && ! in_array($value, ['left', 'right', 'none'], true)) {
+                continue;
+            }
+
+            if ($property === 'text-align' && ! in_array($value, ['left', 'center', 'right', 'justify'], true)) {
                 continue;
             }
 

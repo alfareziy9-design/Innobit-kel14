@@ -157,7 +157,7 @@ class AdminOperationsTest extends TestCase
             ->assertSee('class="divide-y divide-slate-100 md:hidden"', false);
     }
 
-    public function test_review_article_renders_approval_and_rejection_forms_in_review_panel(): void
+    public function test_dashboard_links_to_review_page_and_review_page_renders_decision_forms(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $author = User::factory()->create(['role' => 'author']);
@@ -176,8 +176,76 @@ class AdminOperationsTest extends TestCase
             ->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('Tinjau')
+            ->assertSee(route('admin.articles.review', $article), false)
+            ->assertDontSee(route('admin.articles.approve', $article), false);
+
+        $this->actingAs($admin)
+            ->get(route('admin.articles.review', $article))
+            ->assertOk()
+            ->assertSee('Review Artikel Baru')
+            ->assertSee('Artikel Menunggu Review')
+            ->assertSee('Edit Konten')
+            ->assertSee(route('admin.articles.review.edit', $article), false)
             ->assertSee(route('admin.articles.approve', $article), false)
             ->assertSee(route('admin.articles.reject', $article), false)
             ->assertSee('name="note"', false);
+    }
+
+    public function test_admin_cannot_review_own_article_through_author_queue(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $category = Category::create(['name' => 'Admin Review', 'slug' => 'admin-review']);
+        $article = Article::create([
+            'category_id' => $category->id,
+            'author_id' => $admin->id,
+            'title' => 'Artikel Admin',
+            'slug' => 'artikel-admin',
+            'summary' => 'Ringkasan.',
+            'content' => 'Konten.',
+            'status' => 'review',
+        ]);
+
+        $this->actingAs($admin)->get(route('admin.articles.review', $article))->assertStatus(422);
+        $this->actingAs($admin)->post(route('admin.articles.approve', $article))->assertStatus(422);
+    }
+
+    public function test_dashboard_shows_action_to_review_published_article_update(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $author = User::factory()->create(['role' => 'author']);
+        $category = Category::create(['name' => 'Pembaruan UI', 'slug' => 'pembaruan-ui']);
+        $article = Article::create([
+            'category_id' => $category->id,
+            'author_id' => $author->id,
+            'title' => 'Artikel Terbit',
+            'slug' => 'artikel-terbit-review',
+            'summary' => 'Ringkasan.',
+            'content' => 'Konten.',
+            'status' => 'published',
+        ]);
+        $revision = $article->revisions()->create([
+            'author_id' => $author->id,
+            'category_id' => $category->id,
+            'title' => 'Pembaruan Artikel',
+            'slug' => 'pembaruan-artikel',
+            'summary' => 'Ringkasan pembaruan.',
+            'content' => 'Konten pembaruan.',
+            'status' => 'review',
+        ]);
+
+        $reviewRoute = route('admin.articles.revisions.review', [$article, $revision]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Tinjau Pembaruan')
+            ->assertSee($reviewRoute, false);
+
+        $this->actingAs($admin)
+            ->get($reviewRoute)
+            ->assertOk()
+            ->assertSee('Review Pembaruan Artikel')
+            ->assertSee(route('admin.articles.revisions.approve', [$article, $revision]), false)
+            ->assertSee(route('admin.articles.revisions.reject', [$article, $revision]), false);
     }
 }

@@ -69,10 +69,13 @@
                             <a href="{{ route('profile.show') }}" class="block rounded-lg px-3 py-2 text-sm font-bold text-slate-700 hover:bg-lime-50 hover:text-lime-800">Profil Saya</a>
                             @if (auth()->user()->isAdmin())
                                 <a href="{{ route('admin.dashboard') }}" class="block rounded-lg px-3 py-2 text-sm font-bold text-slate-700 hover:bg-lime-50 hover:text-lime-800">Dashboard Admin</a>
+                                <a href="{{ route('admin.messages.index') }}" class="block rounded-lg px-3 py-2 text-sm font-bold text-slate-700 hover:bg-lime-50 hover:text-lime-800">Inbox Pesan</a>
                                 <a href="{{ route('admin.users.index') }}" class="block rounded-lg px-3 py-2 text-sm font-bold text-slate-700 hover:bg-lime-50 hover:text-lime-800">Kelola User</a>
                             @elseif (auth()->user()->isAuthor())
+                                <a href="{{ route('messages.index') }}" class="block rounded-lg px-3 py-2 text-sm font-bold text-slate-700 hover:bg-lime-50 hover:text-lime-800">Pesan Saya</a>
                                 <a href="{{ route('author.dashboard') }}" class="block rounded-lg px-3 py-2 text-sm font-bold text-slate-700 hover:bg-lime-50 hover:text-lime-800">Dashboard Penulis</a>
                             @else
+                                <a href="{{ route('messages.index') }}" class="block rounded-lg px-3 py-2 text-sm font-bold text-slate-700 hover:bg-lime-50 hover:text-lime-800">Pesan Saya</a>
                                 <a href="{{ route('home') }}" class="block rounded-lg px-3 py-2 text-sm font-bold text-slate-700 hover:bg-lime-50 hover:text-lime-800">Beranda Belajar</a>
                             @endif
                         </div>

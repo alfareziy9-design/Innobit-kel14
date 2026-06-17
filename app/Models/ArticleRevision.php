@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ArticleRevisionStatus;
 use Illuminate\Database\Eloquent\Model;
 
 class ArticleRevision extends Model
@@ -50,5 +51,16 @@ class ArticleRevision extends Model
     public function reviewer()
     {
         return $this->belongsTo(User::class, 'reviewer_id');
+    }
+
+    public function statusMeta(): array
+    {
+        $status = ArticleRevisionStatus::from($this->status);
+
+        return [
+            'label' => $status->label(),
+            'class' => $status->badgeClass(),
+            'dot' => $status->dotClass(),
+        ];
     }
 }

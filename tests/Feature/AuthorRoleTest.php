@@ -66,6 +66,41 @@ class AuthorRoleTest extends TestCase
         Storage::disk('public')->assertExists($article->thumbnailMedia->path);
     }
 
+    public function test_author_draft_uses_unique_slug_when_previous_article_is_soft_deleted(): void
+    {
+        $author = User::factory()->create(['role' => 'author']);
+        $category = Category::create(['name' => 'Slug Draft', 'slug' => 'slug-draft']);
+        $deletedArticle = Article::create([
+            'category_id' => $category->id,
+            'author_id' => $author->id,
+            'title' => 'P',
+            'slug' => 'p',
+            'summary' => 'Artikel lama.',
+            'content' => 'Konten lama.',
+            'status' => 'draft',
+        ]);
+        $deletedArticle->delete();
+
+        $this->actingAs($author)
+            ->post(route('articles.store'), [
+                'title' => 'P',
+                'category_id' => $category->id,
+                'summary' => 'Artikel baru.',
+                'content' => '<p>Konten baru.</p>',
+                'thumbnail' => $this->fakePngUpload(),
+                'quizzes' => $this->quizPayload(),
+            ])
+            ->assertRedirect(route('author.dashboard'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('articles', [
+            'title' => 'P',
+            'slug' => 'p-2',
+            'status' => 'draft',
+            'deleted_at' => null,
+        ]);
+    }
+
     public function test_article_create_form_starts_with_one_quiz_and_add_button(): void
     {
         $author = User::factory()->create(['role' => 'author']);
@@ -75,6 +110,12 @@ class AuthorRoleTest extends TestCase
             ->get(route('articles.create'))
             ->assertOk()
             ->assertSee('+ Tambah Quiz')
+            ->assertSee('data-summernote-editor', false)
+            ->assertSee('summernote@0.9.1/dist/summernote-lite.min.css', false)
+            ->assertSee('jquery@3.7.1/dist/jquery.min.js', false)
+            ->assertSee('summernote@0.9.1/dist/summernote-lite.min.js', false)
+            ->assertSee(route('articles.media.store'), false)
+            ->assertDontSee('tinymce', false)
             ->assertSee('name="quizzes[0][question]"', false)
             ->assertSee('data-quiz-index="1"', false)
             ->assertSee('hidden rounded-xl border border-lime-200 bg-white p-4 shadow-sm', false);
@@ -168,7 +209,7 @@ class AuthorRoleTest extends TestCase
         $this->actingAs($author)->get(route('kategori.index'))->assertForbidden();
     }
 
-    public function test_admin_can_publish_and_manage_any_article(): void
+    public function test_admin_cannot_edit_author_article_but_can_publish_own_article_directly(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $author = User::factory()->create(['role' => 'author']);
@@ -183,19 +224,44 @@ class AuthorRoleTest extends TestCase
             'status' => 'draft',
         ]);
 
-        $response = $this->actingAs($admin)->put(route('articles.update', $article), [
+        $this->actingAs($admin)->get(route('articles.edit', $article))->assertForbidden();
+        $this->actingAs($admin)->put(route('articles.update', $article), [
             'title' => 'Draft Penulis Published',
             'category_id' => $category->id,
             'summary' => 'Ringkasan artikel diperbarui.',
             'content' => 'Konten artikel diperbarui.',
             'status' => 'published',
             'quizzes' => $this->quizPayload(),
-        ]);
+        ])->assertForbidden();
 
-        $response->assertSessionHasNoErrors();
         $this->assertDatabaseHas('articles', [
             'id' => $article->id,
-            'title' => 'Draft Penulis Published',
+            'title' => 'Draft Penulis',
+            'status' => 'draft',
+        ]);
+
+        $ownArticle = Article::create([
+            'category_id' => $category->id,
+            'author_id' => $admin->id,
+            'title' => 'Draft Admin',
+            'slug' => 'draft-admin',
+            'summary' => 'Ringkasan.',
+            'content' => 'Konten.',
+            'status' => 'draft',
+        ]);
+
+        $this->actingAs($admin)->put(route('articles.update', $ownArticle), [
+            'title' => 'Artikel Admin Terbit',
+            'category_id' => $category->id,
+            'summary' => 'Ringkasan artikel admin.',
+            'content' => 'Konten artikel admin.',
+            'status' => 'published',
+            'quizzes' => $this->quizPayload(),
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('articles', [
+            'id' => $ownArticle->id,
+            'title' => 'Artikel Admin Terbit',
             'status' => 'published',
         ]);
     }
@@ -443,7 +509,7 @@ class AuthorRoleTest extends TestCase
             'title' => 'Artikel Aman',
             'category_id' => $category->id,
             'summary' => 'Ringkasan artikel aman.',
-            'content' => '<p onclick="alert(1)">Konten aman</p><script>alert(1)</script><figure><img src="http://localhost:8000/uploads/artikel/content/demo.gif" class="article-media article-media--center" style="width: 320px; background-image: url(javascript:alert(1))"></figure><img src="https://example.com/bad.gif">',
+            'content' => '<div style="text-align: justify; line-height: 1.5"><span style="font-family: Arial; font-size: 18px; color: rgb(15, 23, 42); background-color: #f8fafc"><s>Konten Summernote</s><sup>2</sup></span></div><p onclick="alert(1)">Konten aman</p><script>alert(1)</script><iframe src="https://example.com/video"></iframe><video src="https://example.com/video.mp4"></video><figure><img src="http://localhost:8000/uploads/artikel/content/demo.gif" class="article-media article-media--center" style="width: 320px; float: right; background-image: url(javascript:alert(1))"></figure><img src="data:image/png;base64,AAAA"><img src="https://example.com/bad.gif">',
             'status' => 'published',
             'thumbnail' => $this->fakePngUpload(),
             'quizzes' => $this->quizPayload(),
@@ -457,20 +523,28 @@ class AuthorRoleTest extends TestCase
         $this->assertStringContainsString('uploads/artikel/content/demo.gif', $article->content);
         $this->assertStringContainsString('article-media--center', $article->content);
         $this->assertStringContainsString('width: 320px', $article->content);
+        $this->assertStringContainsString('float: right', $article->content);
+        $this->assertStringContainsString('text-align: justify', $article->content);
+        $this->assertStringContainsString('font-family: Arial', $article->content);
+        $this->assertStringContainsString('font-size: 18px', $article->content);
+        $this->assertStringContainsString('<s>Konten Summernote</s>', $article->content);
+        $this->assertStringContainsString('<sup>2</sup>', $article->content);
         $this->assertStringNotContainsString('onclick', $article->content);
         $this->assertStringNotContainsString('<script', $article->content);
+        $this->assertStringNotContainsString('<iframe', $article->content);
+        $this->assertStringNotContainsString('<video', $article->content);
+        $this->assertStringNotContainsString('data:image', $article->content);
         $this->assertStringNotContainsString('example.com/bad.gif', $article->content);
         $this->assertStringNotContainsString('javascript:', $article->content);
     }
 
-    public function test_admin_review_update_keeps_article_content_images_and_gifs(): void
+    public function test_admin_own_article_update_keeps_article_content_images_and_gifs(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
-        $author = User::factory()->create(['role' => 'author']);
         $category = Category::create(['name' => 'Review Media', 'slug' => 'review-media']);
         $article = Article::create([
             'category_id' => $category->id,
-            'author_id' => $author->id,
+            'author_id' => $admin->id,
             'title' => 'Draft Dengan GIF',
             'slug' => 'draft-dengan-gif',
             'summary' => 'Ringkasan draft dengan GIF.',
